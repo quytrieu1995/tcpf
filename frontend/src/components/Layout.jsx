@@ -108,7 +108,7 @@ const Layout = () => {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:ml-64">
+      <div className="flex-1 flex flex-col">
         {/* Top bar */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg shadow-sm border-b border-gray-200 h-16 flex items-center px-4 sm:px-6 flex-shrink-0">
           <button

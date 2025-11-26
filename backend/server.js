@@ -29,6 +29,8 @@ app.use('/api/stock', require('./routes/stock-management'));
 app.use('/api/debt', require('./routes/debt'));
 app.use('/api/customer-groups', require('./routes/customer-groups'));
 app.use('/api/price-policies', require('./routes/price-policies'));
+app.use('/api/shipments', require('./routes/shipments'));
+app.use('/api/users', require('./routes/users'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -12,6 +12,12 @@ import Promotions from './pages/Promotions'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import PurchaseOrders from './pages/PurchaseOrders'
+import Suppliers from './pages/Suppliers'
+import StockAdjustments from './pages/StockAdjustments'
+import ShippingCarriers from './pages/ShippingCarriers'
+import Shipments from './pages/Shipments'
+import CreateOrder from './pages/CreateOrder'
+import Users from './pages/Users'
 import Layout from './components/Layout'
 
 function App() {
@@ -35,9 +41,15 @@ function App() {
               <Route path="categories" element={<Categories />} />
               <Route path="orders" element={<Orders />} />
               <Route path="customers" element={<Customers />} />
-            <Route path="promotions" element={<Promotions />} />
+              <Route path="promotions" element={<Promotions />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="stock-adjustments" element={<StockAdjustments />} />
+            <Route path="shipping-carriers" element={<ShippingCarriers />} />
+            <Route path="shipments" element={<Shipments />} />
+            <Route path="orders/create" element={<CreateOrder />} />
+            <Route path="users" element={<Users />} />
             <Route path="reports" element={<Reports />} />
             </Route>
           </Routes>

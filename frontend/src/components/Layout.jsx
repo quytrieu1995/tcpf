@@ -26,11 +26,17 @@ const Layout = () => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Sản phẩm', href: '/products', icon: Package },
     { name: 'Danh mục', href: '/categories', icon: FolderTree },
+    { name: 'Tạo đơn hàng', href: '/orders/create', icon: ShoppingCart },
     { name: 'Đơn hàng', href: '/orders', icon: ShoppingCart },
     { name: 'Đặt hàng', href: '/purchase-orders', icon: Package },
     { name: 'Khách hàng', href: '/customers', icon: Users },
+    { name: 'Nhà cung cấp', href: '/suppliers', icon: Building },
+    { name: 'Xuất hủy', href: '/stock-adjustments', icon: Warehouse },
+    { name: 'Đơn vị vận chuyển', href: '/shipping-carriers', icon: Truck },
+    { name: 'Vận đơn', href: '/shipments', icon: Truck },
     { name: 'Khuyến mãi', href: '/promotions', icon: Tag },
     { name: 'Kho hàng', href: '/inventory', icon: Warehouse },
+    { name: 'Người dùng', href: '/users', icon: Users },
     { name: 'Báo cáo', href: '/reports', icon: FileText },
   ]
 

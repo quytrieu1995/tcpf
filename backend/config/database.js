@@ -166,7 +166,7 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL
     `);
 
-    // Shipping methods table
+    // Shipping methods table (Carriers)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS shipping_methods (
         id SERIAL PRIMARY KEY,
@@ -175,7 +175,25 @@ const init = async () => {
         cost DECIMAL(10, 2) NOT NULL,
         estimated_days INTEGER,
         is_active BOOLEAN DEFAULT true,
+        sort_order INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Shipments table (Vận đơn)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shipments (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+        carrier_id INTEGER REFERENCES shipping_methods(id) ON DELETE SET NULL,
+        tracking_number VARCHAR(100) UNIQUE NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        notes TEXT,
+        estimated_delivery_date DATE,
+        delivered_at TIMESTAMP,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

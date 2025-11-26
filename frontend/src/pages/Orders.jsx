@@ -296,6 +296,13 @@ const Orders = () => {
                 <p className="text-sm text-gray-900">{selectedOrder.shipping_address}</p>
               </div>
             )}
+
+            {selectedOrder.tracking_number && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Mã vận đơn</p>
+                <p className="text-sm font-semibold text-primary-600">{selectedOrder.tracking_number}</p>
+              </div>
+            )}
           </div>
         )}
       </Modal>

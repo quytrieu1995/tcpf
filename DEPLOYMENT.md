@@ -64,10 +64,10 @@ JWT_SECRET=your_secure_jwt_secret_key_here
 openssl rand -base64 32
 ```
 
-## Bước 6: Cấu hình Nginx
+## Bước 6: Cấu hình Nginx (HTTP - trước khi có SSL)
 
 ```bash
-# Copy file cấu hình
+# Copy file cấu hình (không có SSL)
 sudo cp nginx/sale.thuanchay.vn.conf /etc/nginx/sites-available/sale.thuanchay.vn.conf
 
 # Tạo symbolic link
@@ -78,7 +78,12 @@ sudo rm /etc/nginx/sites-enabled/default
 
 # Kiểm tra cấu hình
 sudo nginx -t
+
+# Nếu OK, reload Nginx
+sudo systemctl reload nginx
 ```
+
+**Lưu ý:** File cấu hình này chỉ dùng HTTP (port 80). Sau khi cài SSL ở bước 8, Certbot sẽ tự động cập nhật cấu hình để thêm HTTPS.
 
 ## Bước 7: Cấu hình DNS
 
@@ -96,11 +101,17 @@ Trỏ domain `sale.thuanchay.vn` về IP của VPS:
 # Cài đặt Certbot
 sudo apt install certbot python3-certbot-nginx -y
 
-# Lấy SSL certificate
+# Lấy SSL certificate (Certbot sẽ tự động cập nhật cấu hình Nginx)
 sudo certbot --nginx -d sale.thuanchay.vn
 
-# Certbot sẽ tự động cấu hình SSL và redirect HTTP -> HTTPS
+# Certbot sẽ:
+# 1. Tạo SSL certificate
+# 2. Tự động cập nhật file /etc/nginx/sites-available/sale.thuanchay.vn.conf
+# 3. Thêm redirect HTTP -> HTTPS
+# 4. Reload Nginx
 ```
+
+**Lưu ý:** Sau khi chạy Certbot, file cấu hình Nginx sẽ được tự động cập nhật với SSL. Bạn không cần chỉnh sửa thủ công.
 
 ## Bước 9: Chạy ứng dụng
 

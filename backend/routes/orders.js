@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all orders
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { status, page = 1, limit = 10 } = req.query;
+    const { status, page = 1, limit = 10, start_date, end_date } = req.query;
     let query = `
       SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone
       FROM orders o
@@ -21,6 +21,18 @@ router.get('/', authenticate, async (req, res) => {
       paramCount++;
       query += ` AND o.status = $${paramCount}`;
       params.push(status);
+    }
+
+    if (start_date) {
+      paramCount++;
+      query += ` AND DATE(o.created_at) >= $${paramCount}`;
+      params.push(start_date);
+    }
+
+    if (end_date) {
+      paramCount++;
+      query += ` AND DATE(o.created_at) <= $${paramCount}`;
+      params.push(end_date);
     }
 
     query += ` ORDER BY o.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
@@ -40,7 +52,30 @@ router.get('/', authenticate, async (req, res) => {
       order.items = items.rows;
     }
 
-    const countResult = await db.pool.query('SELECT COUNT(*) FROM orders');
+    // Count total with same filters
+    let countQuery = 'SELECT COUNT(*) FROM orders o WHERE 1=1';
+    const countParams = [];
+    let countParamCount = 0;
+
+    if (status) {
+      countParamCount++;
+      countQuery += ` AND o.status = $${countParamCount}`;
+      countParams.push(status);
+    }
+
+    if (start_date) {
+      countParamCount++;
+      countQuery += ` AND DATE(o.created_at) >= $${countParamCount}`;
+      countParams.push(start_date);
+    }
+
+    if (end_date) {
+      countParamCount++;
+      countQuery += ` AND DATE(o.created_at) <= $${countParamCount}`;
+      countParams.push(end_date);
+    }
+
+    const countResult = await db.pool.query(countQuery, countParams);
     
     res.json({
       orders: result.rows,

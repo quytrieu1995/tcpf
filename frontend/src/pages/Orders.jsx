@@ -1,28 +1,39 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Eye, Download, Filter } from 'lucide-react'
+import { Eye, Download, Filter, X } from 'lucide-react'
 import { format } from 'date-fns'
+import * as XLSX from 'xlsx'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
+import Input from '../components/Input'
 
 const Orders = () => {
   const toast = useToast()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showFilterModal, setShowFilterModal] = useState(false)
 
   useEffect(() => {
     fetchOrders()
-  }, [statusFilter])
+  }, [statusFilter, startDate, endDate])
 
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const url = `/api/orders?status=${statusFilter}&limit=1000`
+      let url = `/api/orders?status=${statusFilter}&limit=1000`
+      if (startDate) {
+        url += `&start_date=${startDate}`
+      }
+      if (endDate) {
+        url += `&end_date=${endDate}`
+      }
       const response = await axios.get(url)
       setOrders(response.data.orders)
     } catch (error) {
@@ -32,6 +43,82 @@ const Orders = () => {
       setLoading(false)
     }
   }
+
+  const handleExportExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = orders.map(order => ({
+        'Mã đơn hàng': order.order_number,
+        'Khách hàng': order.customer_name || 'Khách vãng lai',
+        'Email': order.customer_email || '',
+        'Điện thoại': order.customer_phone || '',
+        'Tổng tiền': order.total_amount,
+        'Giảm giá': order.discount_amount || 0,
+        'Phí vận chuyển': order.shipping_cost || 0,
+        'Thanh toán': order.payment_method === 'cash' ? 'Tiền mặt' :
+                     order.payment_method === 'bank_transfer' ? 'Chuyển khoản' :
+                     order.payment_method === 'credit' ? 'Trả chậm' :
+                     order.payment_method === 'card' ? 'Thẻ' : order.payment_method || '',
+        'Trạng thái': order.status === 'completed' ? 'Hoàn thành' :
+                     order.status === 'processing' ? 'Đang xử lý' :
+                     order.status === 'cancelled' ? 'Đã hủy' : 'Chờ xử lý',
+        'Mã vận đơn': order.tracking_number || '',
+        'Địa chỉ giao hàng': order.shipping_address || '',
+        'Ghi chú': order.notes || '',
+        'Ngày tạo': format(new Date(order.created_at), 'dd/MM/yyyy HH:mm')
+      }))
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Đơn hàng')
+
+      // Set column widths
+      const colWidths = [
+        { wch: 15 }, // Mã đơn hàng
+        { wch: 20 }, // Khách hàng
+        { wch: 25 }, // Email
+        { wch: 15 }, // Điện thoại
+        { wch: 15 }, // Tổng tiền
+        { wch: 12 }, // Giảm giá
+        { wch: 15 }, // Phí vận chuyển
+        { wch: 15 }, // Thanh toán
+        { wch: 12 }, // Trạng thái
+        { wch: 15 }, // Mã vận đơn
+        { wch: 30 }, // Địa chỉ
+        { wch: 30 }, // Ghi chú
+        { wch: 20 }  // Ngày tạo
+      ]
+      ws['!cols'] = colWidths
+
+      // Generate filename with date range
+      let filename = 'DonHang'
+      if (startDate || endDate) {
+        const dateStr = startDate && endDate 
+          ? `${startDate}_${endDate}`
+          : startDate 
+          ? `tu_${startDate}`
+          : `den_${endDate}`
+        filename += `_${dateStr}`
+      }
+      filename += `_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`
+
+      // Save file
+      XLSX.writeFile(wb, filename)
+      toast.success('Xuất Excel thành công!')
+    } catch (error) {
+      console.error('Error exporting Excel:', error)
+      toast.error('Có lỗi xảy ra khi xuất Excel')
+    }
+  }
+
+  const clearFilters = () => {
+    setStatusFilter('')
+    setStartDate('')
+    setEndDate('')
+  }
+
+  const hasActiveFilters = statusFilter || startDate || endDate
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
@@ -194,21 +281,24 @@ const Orders = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Quản lý đơn hàng</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Theo dõi và quản lý tất cả đơn hàng</p>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ xử lý</option>
-            <option value="processing">Đang xử lý</option>
-            <option value="completed">Hoàn thành</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant="outline"
-            onClick={fetchOrders}
+            onClick={() => setShowFilterModal(true)}
+            className={hasActiveFilters ? 'border-primary-500 text-primary-600' : ''}
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Lọc
+            {hasActiveFilters && (
+              <span className="ml-2 bg-primary-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                {[statusFilter, startDate, endDate].filter(Boolean).length}
+              </span>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportExcel}
+            disabled={orders.length === 0}
           >
             <Download className="w-4 h-4 mr-2" />
             Xuất Excel
@@ -226,6 +316,113 @@ const Orders = () => {
         onRowClick={handleViewDetails}
         emptyMessage="Chưa có đơn hàng nào"
       />
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        title="Lọc đơn hàng"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Trạng thái
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">Chờ xử lý</option>
+              <option value="processing">Đang xử lý</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Từ ngày
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Đến ngày
+              </label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm text-gray-600">Bộ lọc đang áp dụng:</span>
+              <div className="flex flex-wrap gap-2">
+                {statusFilter && (
+                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                    Trạng thái: {statusFilter === 'pending' ? 'Chờ xử lý' :
+                                 statusFilter === 'processing' ? 'Đang xử lý' :
+                                 statusFilter === 'completed' ? 'Hoàn thành' : 'Đã hủy'}
+                    <button
+                      onClick={() => setStatusFilter('')}
+                      className="ml-1 hover:text-primary-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {startDate && (
+                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                    Từ: {format(new Date(startDate), 'dd/MM/yyyy')}
+                    <button
+                      onClick={() => setStartDate('')}
+                      className="ml-1 hover:text-primary-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {endDate && (
+                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                    Đến: {format(new Date(endDate), 'dd/MM/yyyy')}
+                    <button
+                      onClick={() => setEndDate('')}
+                      className="ml-1 hover:text-primary-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+            >
+              Xóa bộ lọc
+            </Button>
+            <Button onClick={() => setShowFilterModal(false)}>
+              Áp dụng
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Order Details Modal */}
       <Modal

@@ -86,14 +86,14 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Tổng quan về hoạt động bán hàng</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">Tổng quan về hoạt động bán hàng</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         <StatCard
           title="Doanh thu"
           value={formatCurrency(stats.overview.totalRevenue)}
@@ -127,9 +127,9 @@ const Dashboard = () => {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Revenue Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo ngày</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={stats.revenueByDay}>
@@ -156,7 +156,7 @@ const Dashboard = () => {
         </div>
 
         {/* Orders by Status */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng theo trạng thái</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -181,7 +181,7 @@ const Dashboard = () => {
       </div>
 
       {/* Top Products */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Sản phẩm bán chạy</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={stats.topProducts}>
@@ -196,7 +196,7 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Orders */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 overflow-x-auto">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng gần đây</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">

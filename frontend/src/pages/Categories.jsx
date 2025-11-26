@@ -76,7 +76,7 @@ const Categories = () => {
 
   const renderCategory = (category, level = 0) => (
     <div key={category.id} className="mb-2">
-      <div className={`flex items-center justify-between p-3 bg-white rounded-lg shadow ${level > 0 ? 'ml-6' : ''}`}>
+      <div className={`flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 ${level > 0 ? 'ml-4 sm:ml-6' : ''}`}>
         <div className="flex items-center">
           {category.children && category.children.length > 0 ? (
             <FolderOpen className="w-5 h-5 mr-2 text-primary-600" />
@@ -121,11 +121,11 @@ const Categories = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý danh mục</h1>
-          <p className="text-gray-600 mt-1">Tổ chức sản phẩm theo danh mục</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Quản lý danh mục</h1>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Tổ chức sản phẩm theo danh mục</p>
         </div>
         <button
           onClick={() => {
@@ -133,27 +133,35 @@ const Categories = () => {
             setFormData({ name: '', description: '', parent_id: null, image_url: '', sort_order: 0, is_active: true })
             setShowModal(true)
           }}
-          className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors w-full sm:w-auto"
         >
           <Plus className="w-5 h-5 mr-2" />
           Thêm danh mục
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        {categories.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <Folder className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p>Chưa có danh mục nào</p>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded animate-pulse" />
+            ))}
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="text-center py-8 sm:py-12 text-gray-500">
+            <Folder className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm sm:text-base">Chưa có danh mục nào</p>
           </div>
         ) : (
-          categories.map(category => renderCategory(category))
+          <div className="space-y-2">
+            {categories.map(category => renderCategory(category))}
+          </div>
         )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}
             </h2>

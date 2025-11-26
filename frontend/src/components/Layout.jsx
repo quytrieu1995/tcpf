@@ -47,7 +47,7 @@ const Layout = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-30 w-64 bg-gradient-to-b from-white to-gray-50 shadow-xl transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
@@ -73,14 +73,14 @@ const Layout = () => {
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
+                    flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
                     ${isActive(item.href)
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-primary-600 text-white shadow-md transform scale-105'
+                      : 'text-gray-700 hover:bg-gray-100 hover:translate-x-1'
                     }
                   `}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
+                  <Icon className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-white' : ''}`} />
                   {item.name}
                 </Link>
               )
@@ -109,15 +109,20 @@ const Layout = () => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-white shadow-sm h-16 flex items-center px-6">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg shadow-sm border-b border-gray-200 h-16 flex items-center px-6">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
+            className="lg:hidden text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-gray-100"
           >
             <Menu size={24} />
           </button>
-          <div className="ml-auto">
-            <span className="text-sm text-gray-600">Xin chào, <span className="font-medium">{user?.username}</span></span>
+          <div className="ml-auto flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-2 text-sm text-gray-600">
+              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                <span className="text-primary-600 font-semibold">{user?.username?.charAt(0).toUpperCase()}</span>
+              </div>
+              <span>Xin chào, <span className="font-medium text-gray-900">{user?.username}</span></span>
+            </div>
           </div>
         </div>
 

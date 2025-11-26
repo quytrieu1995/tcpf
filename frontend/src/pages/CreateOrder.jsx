@@ -42,18 +42,34 @@ const CreateOrder = () => {
   const fetchProducts = async () => {
     try {
       const response = await axios.get('/api/products?limit=1000')
-      setProducts(response.data.products || [])
+      // Ensure response.data.products is an array
+      if (Array.isArray(response.data?.products)) {
+        setProducts(response.data.products)
+      } else if (Array.isArray(response.data)) {
+        setProducts(response.data)
+      } else {
+        setProducts([])
+        console.warn('Products response is not an array:', response.data)
+      }
     } catch (error) {
       console.error('Error fetching products:', error)
+      setProducts([]) // Set empty array on error
     }
   }
 
   const fetchCustomers = async () => {
     try {
       const response = await axios.get('/api/customers?limit=1000')
-      setCustomers(response.data)
+      // Ensure response.data is an array
+      if (Array.isArray(response.data)) {
+        setCustomers(response.data)
+      } else {
+        setCustomers([])
+        console.warn('Customers response is not an array:', response.data)
+      }
     } catch (error) {
       console.error('Error fetching customers:', error)
+      setCustomers([]) // Set empty array on error
     }
   }
 
@@ -176,10 +192,12 @@ const CreateOrder = () => {
     }).format(value)
   }
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProducts = Array.isArray(products) 
+    ? products.filter(product =>
+        product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : []
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -202,18 +220,24 @@ const CreateOrder = () => {
               className="mb-4"
             />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-              {filteredProducts.map(product => (
-                <div
-                  key={product.id}
-                  className="border border-gray-200 rounded-lg p-3 hover:border-primary-500 cursor-pointer transition-colors"
-                  onClick={() => addToCart(product)}
-                >
-                  <div className="font-medium text-sm text-gray-900 mb-1">{product.name}</div>
-                  <div className="text-xs text-gray-500 mb-1">SKU: {product.sku || '-'}</div>
-                  <div className="text-sm font-semibold text-primary-600">{formatCurrency(product.price)}</div>
-                  <div className="text-xs text-gray-400 mt-1">Tồn: {product.stock}</div>
+              {Array.isArray(filteredProducts) && filteredProducts.length > 0 ? (
+                filteredProducts.map(product => (
+                  <div
+                    key={product.id}
+                    className="border border-gray-200 rounded-lg p-3 hover:border-primary-500 cursor-pointer transition-colors"
+                    onClick={() => addToCart(product)}
+                  >
+                    <div className="font-medium text-sm text-gray-900 mb-1">{product.name}</div>
+                    <div className="text-xs text-gray-500 mb-1">SKU: {product.sku || '-'}</div>
+                    <div className="text-sm font-semibold text-primary-600">{formatCurrency(product.price)}</div>
+                    <div className="text-xs text-gray-400 mt-1">Tồn: {product.stock}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center text-gray-500 py-8">
+                  {searchTerm ? 'Không tìm thấy sản phẩm' : 'Chưa có sản phẩm nào'}
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -288,7 +312,7 @@ const CreateOrder = () => {
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Khách vãng lai</option>
-                  {customers.map(customer => (
+                  {Array.isArray(customers) && customers.map(customer => (
                     <option key={customer.id} value={customer.id}>
                       {customer.name} - {customer.phone}
                     </option>
@@ -330,7 +354,7 @@ const CreateOrder = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Không vận chuyển</option>
-                {shippingMethods.map(method => (
+                {Array.isArray(shippingMethods) && shippingMethods.map(method => (
                   <option key={method.id} value={method.id}>
                     {method.name} - {formatCurrency(method.cost)}
                   </option>

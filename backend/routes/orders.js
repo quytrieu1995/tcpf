@@ -99,7 +99,7 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { customer_id, items, payment_method, notes } = req.body;
+    const { customer_id, items, payment_method, notes, shipping_method_id, shipping_address, shipping_phone, promotion_code } = req.body;
     const client = await db.pool.connect();
 
     try {
@@ -121,10 +121,56 @@ router.post('/', authenticate, [
         totalAmount += parseFloat(product.rows[0].price) * item.quantity;
       }
 
+      // Get shipping cost
+      let shippingCost = 0;
+      if (shipping_method_id) {
+        const shipping = await client.query('SELECT cost FROM shipping_methods WHERE id = $1', [shipping_method_id]);
+        if (shipping.rows.length > 0) {
+          shippingCost = parseFloat(shipping.rows[0].cost);
+        }
+      }
+
+      // Apply promotion if provided
+      let discountAmount = 0;
+      let promotionId = null;
+      if (promotion_code) {
+        const promotion = await client.query(
+          `SELECT * FROM promotions 
+           WHERE name = $1 
+           AND is_active = true 
+           AND start_date <= CURRENT_TIMESTAMP 
+           AND end_date >= CURRENT_TIMESTAMP
+           AND (usage_limit IS NULL OR used_count < usage_limit)`,
+          [promotion_code]
+        );
+        
+        if (promotion.rows.length > 0) {
+          const promo = promotion.rows[0];
+          if (totalAmount >= promo.min_purchase_amount) {
+            promotionId = promo.id;
+            if (promo.type === 'percentage') {
+              discountAmount = (totalAmount * promo.value) / 100;
+              if (promo.max_discount_amount && discountAmount > promo.max_discount_amount) {
+                discountAmount = promo.max_discount_amount;
+              }
+            } else if (promo.type === 'fixed') {
+              discountAmount = promo.value;
+              if (discountAmount > totalAmount) {
+                discountAmount = totalAmount;
+              }
+            }
+            // Update promotion used count
+            await client.query('UPDATE promotions SET used_count = used_count + 1 WHERE id = $1', [promo.id]);
+          }
+        }
+      }
+
+      const finalAmount = totalAmount + shippingCost - discountAmount;
+
       // Create order
       const orderResult = await client.query(
-        'INSERT INTO orders (customer_id, order_number, total_amount, payment_method, notes, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [customer_id || null, orderNumber, totalAmount, payment_method, notes, 'pending']
+        'INSERT INTO orders (customer_id, order_number, total_amount, shipping_method_id, shipping_cost, discount_amount, promotion_id, payment_method, shipping_address, shipping_phone, notes, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+        [customer_id || null, orderNumber, finalAmount, shipping_method_id, shippingCost, discountAmount, promotionId, payment_method, shipping_address, shipping_phone, notes, 'pending']
       );
 
       const order = orderResult.rows[0];

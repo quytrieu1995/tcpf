@@ -20,7 +20,7 @@ router.get('/', authenticate, async (req, res) => {
 
     if (category) {
       paramCount++;
-      query += ` AND category = $${paramCount}`;
+      query += ` AND (category = $${paramCount} OR category_id = $${paramCount})`;
       params.push(category);
     }
 
@@ -68,10 +68,10 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, description, price, stock, category, image_url } = req.body;
+    const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold } = req.body;
     const result = await db.pool.query(
-      'INSERT INTO products (name, description, price, stock, category, image_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [name, description, price, stock, category, image_url]
+      'INSERT INTO products (name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
+      [name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold || 10]
     );
 
     res.status(201).json(result.rows[0]);
@@ -84,10 +84,10 @@ router.post('/', authenticate, [
 // Update product
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const { name, description, price, stock, category, image_url } = req.body;
+    const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active } = req.body;
     const result = await db.pool.query(
-      'UPDATE products SET name = $1, description = $2, price = $3, stock = $4, category = $5, image_url = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *',
-      [name, description, price, stock, category, image_url, req.params.id]
+      'UPDATE products SET name = $1, description = $2, price = $3, stock = $4, category = $5, category_id = $6, image_url = $7, sku = $8, barcode = $9, cost_price = $10, weight = $11, supplier_id = $12, low_stock_threshold = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15 RETURNING *',
+      [name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active !== false, req.params.id]
     );
 
     if (result.rows.length === 0) {

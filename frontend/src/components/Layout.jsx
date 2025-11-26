@@ -7,7 +7,13 @@ import {
   Users, 
   LogOut,
   Menu,
-  X
+  X,
+  FolderTree,
+  Tag,
+  Warehouse,
+  FileText,
+  Truck,
+  Building
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -19,8 +25,12 @@ const Layout = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Sản phẩm', href: '/products', icon: Package },
+    { name: 'Danh mục', href: '/categories', icon: FolderTree },
     { name: 'Đơn hàng', href: '/orders', icon: ShoppingCart },
     { name: 'Khách hàng', href: '/customers', icon: Users },
+    { name: 'Khuyến mãi', href: '/promotions', icon: Tag },
+    { name: 'Kho hàng', href: '/inventory', icon: Warehouse },
+    { name: 'Báo cáo', href: '/reports', icon: FileText },
   ]
 
   const isActive = (path) => location.pathname === path

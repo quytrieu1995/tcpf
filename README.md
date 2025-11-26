@@ -4,13 +4,25 @@ Dashboard quản lý bán hàng hiện đại với giao diện đẹp và đầ
 
 ## 🚀 Tính năng
 
+### Core Features
 - ✅ Dashboard với thống kê và biểu đồ trực quan
-- ✅ Quản lý sản phẩm (CRUD)
+- ✅ Quản lý sản phẩm nâng cao (SKU, barcode, giá vốn, nhà cung cấp)
 - ✅ Quản lý đơn hàng với nhiều trạng thái
 - ✅ Quản lý khách hàng
 - ✅ Xác thực người dùng với JWT
 - ✅ Responsive design
 - ✅ API RESTful đầy đủ
+
+### Ecommerce Features
+- ✅ **Quản lý Danh mục**: Danh mục đa cấp, phân loại sản phẩm
+- ✅ **Hệ thống Khuyến mãi**: Giảm giá %, số tiền cố định, miễn phí ship
+- ✅ **Quản lý Kho hàng**: Theo dõi tồn kho, cảnh báo, lịch sử giao dịch
+- ✅ **Báo cáo & Phân tích**: Doanh thu, sản phẩm bán chạy, khách hàng VIP
+- ✅ **Quản lý Vận chuyển**: Phương thức vận chuyển, tính phí tự động
+- ✅ **Quản lý Nhà cung cấp**: Thông tin nhà cung cấp, gán cho sản phẩm
+- ✅ **Export/Import**: Xuất dữ liệu ra CSV/Excel
+
+Xem chi tiết trong [FEATURES.md](./FEATURES.md)
 
 ## 🛠️ Công nghệ
 
@@ -252,16 +264,58 @@ tcpf/
 - `PUT /api/products/:id` - Cập nhật sản phẩm
 - `DELETE /api/products/:id` - Xóa sản phẩm
 
+### Categories
+- `GET /api/categories` - Lấy danh sách danh mục (tree structure)
+- `GET /api/categories/:id` - Lấy chi tiết danh mục
+- `POST /api/categories` - Tạo danh mục
+- `PUT /api/categories/:id` - Cập nhật danh mục
+- `DELETE /api/categories/:id` - Xóa danh mục
+
+### Promotions
+- `GET /api/promotions` - Lấy danh sách khuyến mãi
+- `GET /api/promotions/:id` - Lấy chi tiết khuyến mãi
+- `POST /api/promotions` - Tạo khuyến mãi
+- `POST /api/promotions/calculate` - Tính toán giảm giá
+- `PUT /api/promotions/:id` - Cập nhật khuyến mãi
+- `DELETE /api/promotions/:id` - Xóa khuyến mãi
+
+### Inventory
+- `GET /api/inventory/transactions` - Lịch sử giao dịch kho
+- `GET /api/inventory/low-stock` - Hàng sắp hết
+- `GET /api/inventory/summary` - Tổng hợp kho
+- `POST /api/inventory/adjust` - Điều chỉnh kho
+
+### Reports
+- `GET /api/reports/sales` - Báo cáo bán hàng
+- `GET /api/reports/revenue` - Báo cáo doanh thu
+- `GET /api/reports/products` - Báo cáo sản phẩm
+- `GET /api/reports/export` - Xuất dữ liệu (CSV)
+
+### Suppliers
+- `GET /api/suppliers` - Lấy danh sách nhà cung cấp
+- `GET /api/suppliers/:id` - Lấy chi tiết nhà cung cấp
+- `POST /api/suppliers` - Tạo nhà cung cấp
+- `PUT /api/suppliers/:id` - Cập nhật nhà cung cấp
+- `DELETE /api/suppliers/:id` - Xóa nhà cung cấp
+
+### Shipping
+- `GET /api/shipping` - Lấy phương thức vận chuyển
+- `GET /api/shipping/:id` - Lấy chi tiết phương thức vận chuyển
+- `POST /api/shipping` - Tạo phương thức vận chuyển
+- `PUT /api/shipping/:id` - Cập nhật phương thức vận chuyển
+- `DELETE /api/shipping/:id` - Xóa phương thức vận chuyển
+
 ### Orders
 - `GET /api/orders` - Lấy danh sách đơn hàng
 - `GET /api/orders/:id` - Lấy chi tiết đơn hàng
-- `POST /api/orders` - Tạo đơn hàng mới
+- `POST /api/orders` - Tạo đơn hàng mới (hỗ trợ khuyến mãi, vận chuyển)
 - `PATCH /api/orders/:id/status` - Cập nhật trạng thái đơn hàng
 - `DELETE /api/orders/:id` - Xóa đơn hàng
 
 ### Customers
 - `GET /api/customers` - Lấy danh sách khách hàng
 - `GET /api/customers/:id` - Lấy chi tiết khách hàng
+- `GET /api/customers/:id/orders` - Lấy đơn hàng của khách hàng
 - `POST /api/customers` - Tạo khách hàng mới
 - `PUT /api/customers/:id` - Cập nhật khách hàng
 - `DELETE /api/customers/:id` - Xóa khách hàng

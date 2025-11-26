@@ -18,6 +18,12 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/promotions', require('./routes/promotions'));
+app.use('/api/suppliers', require('./routes/suppliers'));
+app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/shipping', require('./routes/shipping'));
+app.use('/api/reports', require('./routes/reports'));
 
 // Health check
 app.get('/api/health', (req, res) => {

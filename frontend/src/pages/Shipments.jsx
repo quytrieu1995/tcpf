@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Plus, Eye, Package, Truck } from 'lucide-react'
+import { Plus, Eye, Package, Truck, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
@@ -108,6 +108,21 @@ const Shipments = () => {
     }
   }
 
+  const handleSyncShipment = async (shipmentId) => {
+    try {
+      const response = await axios.post(`/api/shipments/${shipmentId}/sync`)
+      toast.success('Đồng bộ trạng thái thành công!')
+      fetchShipments()
+      if (selectedShipment?.id === shipmentId) {
+        const updated = await axios.get(`/api/shipments/${shipmentId}`)
+        setSelectedShipment(updated.data)
+      }
+    } catch (error) {
+      console.error('Error syncing shipment:', error)
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi đồng bộ')
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       order_id: '',
@@ -210,14 +225,28 @@ const Shipments = () => {
       key: 'actions',
       header: 'Thao tác',
       render: (row) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleViewDetails(row)}
-        >
-          <Eye className="w-4 h-4 mr-1" />
-          Chi tiết
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewDetails(row)}
+            title="Xem chi tiết"
+          >
+            <Eye className="w-4 h-4 mr-1" />
+            Chi tiết
+          </Button>
+          {row.carrier_id && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSyncShipment(row.id)}
+              title="Đồng bộ từ API"
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       )
     }
   ]
@@ -393,6 +422,53 @@ const Shipments = () => {
               <div>
                 <p className="text-sm text-gray-500 mb-1">Ghi chú</p>
                 <p className="text-sm text-gray-900">{selectedShipment.notes}</p>
+              </div>
+            )}
+            {selectedShipment.carrier_status && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Trạng thái từ đơn vị vận chuyển</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedShipment.carrier_status}</p>
+                {selectedShipment.carrier_status_message && (
+                  <p className="text-xs text-gray-600 mt-1">{selectedShipment.carrier_status_message}</p>
+                )}
+              </div>
+            )}
+            {selectedShipment.tracking_events && (
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Lịch sử vận chuyển</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {(() => {
+                    let events = selectedShipment.tracking_events;
+                    if (typeof events === 'string') {
+                      try {
+                        events = JSON.parse(events);
+                      } catch (e) {
+                        events = [];
+                      }
+                    }
+                    return Array.isArray(events) && events.length > 0 ? (
+                      events.map((event, index) => (
+                        <div key={index} className="p-2 bg-gray-50 rounded text-xs">
+                          <div className="font-medium">{event.status || event.description || event.message || 'Cập nhật trạng thái'}</div>
+                          {event.time && (
+                            <div className="text-gray-500">{format(new Date(event.time), 'dd/MM/yyyy HH:mm')}</div>
+                          )}
+                          {event.location && (
+                            <div className="text-gray-400">{event.location}</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-gray-500">Chưa có lịch sử vận chuyển</div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+            {selectedShipment.last_synced_at && (
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Lần đồng bộ cuối</p>
+                <p className="text-sm text-gray-600">{format(new Date(selectedShipment.last_synced_at), 'dd/MM/yyyy HH:mm')}</p>
               </div>
             )}
           </div>

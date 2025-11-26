@@ -51,10 +51,11 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, description, cost, estimated_days, is_active, sort_order } = req.body;
+    const { name, description, cost, estimated_days, is_active, sort_order, api_type, api_endpoint, api_key, api_secret, api_config } = req.body;
     const result = await db.pool.query(
-      'INSERT INTO shipping_methods (name, description, cost, estimated_days, is_active, sort_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [name, description, cost, estimated_days, is_active !== false, sort_order || 0]
+      `INSERT INTO shipping_methods (name, description, cost, estimated_days, is_active, sort_order, api_type, api_endpoint, api_key, api_secret, api_config) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [name, description, cost, estimated_days, is_active !== false, sort_order || 0, api_type || null, api_endpoint || null, api_key || null, api_secret || null, JSON.stringify(api_config || {})]
     );
 
     res.status(201).json(result.rows[0]);
@@ -67,10 +68,13 @@ router.post('/', authenticate, [
 // Update shipping method
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const { name, description, cost, estimated_days, is_active, sort_order } = req.body;
+    const { name, description, cost, estimated_days, is_active, sort_order, api_type, api_endpoint, api_key, api_secret, api_config } = req.body;
     const result = await db.pool.query(
-      'UPDATE shipping_methods SET name = $1, description = $2, cost = $3, estimated_days = $4, is_active = $5, sort_order = $6 WHERE id = $7 RETURNING *',
-      [name, description, cost, estimated_days, is_active, sort_order, req.params.id]
+      `UPDATE shipping_methods 
+       SET name = $1, description = $2, cost = $3, estimated_days = $4, is_active = $5, sort_order = $6,
+           api_type = $7, api_endpoint = $8, api_key = $9, api_secret = $10, api_config = $11
+       WHERE id = $12 RETURNING *`,
+      [name, description, cost, estimated_days, is_active, sort_order, api_type || null, api_endpoint || null, api_key || null, api_secret || null, JSON.stringify(api_config || {}), req.params.id]
     );
 
     if (result.rows.length === 0) {
@@ -95,6 +99,18 @@ router.delete('/:id', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Delete shipping method error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Test carrier API connection
+router.post('/:id/test-connection', authenticate, async (req, res) => {
+  try {
+    const carrierService = require('../services/carrierService');
+    const result = await carrierService.testConnection(req.params.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Test connection error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 });
 

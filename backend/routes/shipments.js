@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
+const carrierService = require('../services/carrierService');
 const router = express.Router();
 
 // Get all shipments
@@ -210,6 +211,37 @@ router.put('/:id', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Update shipment error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Sync shipment status from carrier API
+router.post('/:id/sync', authenticate, async (req, res) => {
+  try {
+    const statusData = await carrierService.syncShipmentStatus(req.params.id);
+    res.json({ 
+      message: 'Đồng bộ thành công',
+      status: statusData 
+    });
+  } catch (error) {
+    console.error('Sync shipment error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Sync all shipments for a carrier
+router.post('/carrier/:carrierId/sync', authenticate, async (req, res) => {
+  try {
+    const results = await carrierService.syncCarrierShipments(req.params.carrierId);
+    res.json({ 
+      message: 'Đồng bộ hoàn tất',
+      results,
+      total: results.length,
+      success: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length
+    });
+  } catch (error) {
+    console.error('Sync carrier shipments error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 });
 

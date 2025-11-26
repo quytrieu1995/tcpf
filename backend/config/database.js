@@ -176,6 +176,13 @@ const init = async () => {
         estimated_days INTEGER,
         is_active BOOLEAN DEFAULT true,
         sort_order INTEGER DEFAULT 0,
+        api_type VARCHAR(50),
+        api_endpoint VARCHAR(500),
+        api_key VARCHAR(500),
+        api_secret VARCHAR(500),
+        api_config JSONB,
+        is_connected BOOLEAN DEFAULT false,
+        last_sync_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -191,6 +198,10 @@ const init = async () => {
         notes TEXT,
         estimated_delivery_date DATE,
         delivered_at TIMESTAMP,
+        carrier_status VARCHAR(100),
+        carrier_status_message TEXT,
+        tracking_events JSONB,
+        last_synced_at TIMESTAMP,
         created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

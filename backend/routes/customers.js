@@ -8,7 +8,12 @@ const router = express.Router();
 router.get('/', authenticate, async (req, res) => {
   try {
     const { search, page = 1, limit = 10 } = req.query;
-    let query = 'SELECT * FROM customers WHERE 1=1';
+    let query = `
+      SELECT c.*, cg.name as group_name, cg.discount_percentage as group_discount
+      FROM customers c
+      LEFT JOIN customer_groups cg ON c.group_id = cg.id
+      WHERE 1=1
+    `;
     const params = [];
     let paramCount = 0;
 
@@ -74,10 +79,10 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, phone, address } = req.body;
+    const { name, email, phone, address, group_id, credit_limit, tags } = req.body;
     const result = await db.pool.query(
-      'INSERT INTO customers (name, email, phone, address) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, email, phone, address]
+      'INSERT INTO customers (name, email, phone, address, group_id, credit_limit, tags) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [name, email, phone, address, group_id, credit_limit || 0, tags || []]
     );
 
     res.status(201).json(result.rows[0]);
@@ -90,10 +95,10 @@ router.post('/', authenticate, [
 // Update customer
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const { name, email, phone, address } = req.body;
+    const { name, email, phone, address, group_id, credit_limit, tags } = req.body;
     const result = await db.pool.query(
-      'UPDATE customers SET name = $1, email = $2, phone = $3, address = $4 WHERE id = $5 RETURNING *',
-      [name, email, phone, address, req.params.id]
+      'UPDATE customers SET name = $1, email = $2, phone = $3, address = $4, group_id = $5, credit_limit = $6, tags = $7 WHERE id = $8 RETURNING *',
+      [name, email, phone, address, group_id, credit_limit, tags, req.params.id]
     );
 
     if (result.rows.length === 0) {

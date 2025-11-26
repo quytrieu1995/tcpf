@@ -244,6 +244,259 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb
     `);
 
+    // Customer Groups (Phân loại khách hàng)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customer_groups (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        discount_percentage DECIMAL(5, 2) DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Update customers table
+    await pool.query(`
+      ALTER TABLE customers 
+      ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES customer_groups(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS total_purchases DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_orders INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS debt_amount DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS credit_limit DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tags TEXT[]
+    `);
+
+    // Purchase Orders (Đơn đặt hàng từ nhà cung cấp)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS purchase_orders (
+        id SERIAL PRIMARY KEY,
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        expected_date DATE,
+        received_date DATE,
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Purchase Order Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS purchase_order_items (
+        id SERIAL PRIMARY KEY,
+        purchase_order_id INTEGER REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        received_quantity INTEGER DEFAULT 0,
+        subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `);
+
+    // Stock In (Nhập kho)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_ins (
+        id SERIAL PRIMARY KEY,
+        reference_number VARCHAR(50) UNIQUE NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+        purchase_order_id INTEGER REFERENCES purchase_orders(id) ON DELETE SET NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Stock In Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_in_items (
+        id SERIAL PRIMARY KEY,
+        stock_in_id INTEGER REFERENCES stock_ins(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        batch_number VARCHAR(100),
+        expiry_date DATE,
+        subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `);
+
+    // Stock Out (Xuất kho)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_outs (
+        id SERIAL PRIMARY KEY,
+        reference_number VARCHAR(50) UNIQUE NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+        customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Stock Out Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_out_items (
+        id SERIAL PRIMARY KEY,
+        stock_out_id INTEGER REFERENCES stock_outs(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `);
+
+    // Stocktaking (Kiểm kê kho)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stocktakings (
+        id SERIAL PRIMARY KEY,
+        reference_number VARCHAR(50) UNIQUE NOT NULL,
+        warehouse_location VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'draft',
+        counted_at TIMESTAMP,
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+      )
+    `);
+
+    // Stocktaking Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stocktaking_items (
+        id SERIAL PRIMARY KEY,
+        stocktaking_id INTEGER REFERENCES stocktakings(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        system_quantity INTEGER NOT NULL,
+        counted_quantity INTEGER NOT NULL,
+        difference INTEGER NOT NULL,
+        notes TEXT
+      )
+    `);
+
+    // Stock Transfers (Chuyển kho)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_transfers (
+        id SERIAL PRIMARY KEY,
+        reference_number VARCHAR(50) UNIQUE NOT NULL,
+        from_location VARCHAR(255),
+        to_location VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'pending',
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+      )
+    `);
+
+    // Stock Transfer Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_transfer_items (
+        id SERIAL PRIMARY KEY,
+        stock_transfer_id INTEGER REFERENCES stock_transfers(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL,
+        notes TEXT
+      )
+    `);
+
+    // Debt Transactions (Công nợ)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS debt_transactions (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(20) NOT NULL,
+        entity_type VARCHAR(20) NOT NULL,
+        entity_id INTEGER NOT NULL,
+        order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+        purchase_order_id INTEGER REFERENCES purchase_orders(id) ON DELETE SET NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        transaction_type VARCHAR(20) NOT NULL,
+        notes TEXT,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Product Variants (Biến thể sản phẩm)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_variants (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        sku VARCHAR(100) UNIQUE,
+        barcode VARCHAR(100),
+        price DECIMAL(10, 2),
+        cost_price DECIMAL(10, 2),
+        stock INTEGER DEFAULT 0,
+        attributes JSONB,
+        image_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Product Combos (Combo sản phẩm)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_combos (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10, 2) NOT NULL,
+        cost_price DECIMAL(10, 2),
+        image_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Product Combo Items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_combo_items (
+        id SERIAL PRIMARY KEY,
+        combo_id INTEGER REFERENCES product_combos(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+
+    // Price Policies (Chính sách giá)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS price_policies (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        customer_group_id INTEGER REFERENCES customer_groups(id) ON DELETE SET NULL,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        min_quantity INTEGER DEFAULT 1,
+        start_date DATE,
+        end_date DATE,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Serial Numbers / IMEI
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_serials (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        serial_number VARCHAR(100) UNIQUE NOT NULL,
+        imei VARCHAR(100),
+        status VARCHAR(20) DEFAULT 'available',
+        order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+        customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create default admin user if not exists
     const bcrypt = require('bcryptjs');
     const adminCheck = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);

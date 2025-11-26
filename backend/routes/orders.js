@@ -100,6 +100,7 @@ router.post('/', authenticate, [
     }
 
     const { customer_id, items, payment_method, notes, shipping_method_id, shipping_address, shipping_phone, promotion_code } = req.body;
+    const user = req.user;
     const client = await db.pool.connect();
 
     try {
@@ -174,6 +175,48 @@ router.post('/', authenticate, [
       );
 
       const order = orderResult.rows[0];
+
+      // If payment is credit, create debt transaction
+      if (payment_method === 'credit' && customer_id) {
+        await client.query(
+          `INSERT INTO debt_transactions (type, entity_type, entity_id, order_id, amount, transaction_type, created_by)
+           VALUES ('customer', 'customer', $1, $2, $3, 'increase', $4)`,
+          [customer_id, order.id, finalAmount, user.id]
+        );
+
+        // Update customer debt
+        await client.query(
+          'UPDATE customers SET debt_amount = debt_amount + $1, total_purchases = total_purchases + $2, total_orders = total_orders + 1 WHERE id = $3',
+          [finalAmount, finalAmount, customer_id]
+        );
+      } else if (customer_id) {
+        // Update customer stats
+        await client.query(
+          'UPDATE customers SET total_purchases = total_purchases + $1, total_orders = total_orders + 1 WHERE id = $2',
+          [finalAmount, customer_id]
+        );
+      }
+
+      // If payment is credit, create debt transaction
+      if (payment_method === 'credit' && customer_id) {
+        await client.query(
+          `INSERT INTO debt_transactions (type, entity_type, entity_id, order_id, amount, transaction_type, created_by)
+           VALUES ('customer', 'customer', $1, $2, $3, 'increase', $4)`,
+          [customer_id, order.id, finalAmount, user.id]
+        );
+
+        // Update customer debt
+        await client.query(
+          'UPDATE customers SET debt_amount = debt_amount + $1, total_purchases = total_purchases + $2, total_orders = total_orders + 1 WHERE id = $3',
+          [finalAmount, finalAmount, customer_id]
+        );
+      } else if (customer_id) {
+        // Update customer stats
+        await client.query(
+          'UPDATE customers SET total_purchases = total_purchases + $1, total_orders = total_orders + 1 WHERE id = $2',
+          [finalAmount, customer_id]
+        );
+      }
 
       // Create order items and update stock
       for (const item of items) {

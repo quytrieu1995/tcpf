@@ -24,6 +24,11 @@ app.use('/api/suppliers', require('./routes/suppliers'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/shipping', require('./routes/shipping'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/purchase-orders', require('./routes/purchase-orders'));
+app.use('/api/stock', require('./routes/stock-management'));
+app.use('/api/debt', require('./routes/debt'));
+app.use('/api/customer-groups', require('./routes/customer-groups'));
+app.use('/api/price-policies', require('./routes/price-policies'));
 
 // Health check
 app.get('/api/health', (req, res) => {

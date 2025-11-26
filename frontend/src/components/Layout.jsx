@@ -22,25 +22,69 @@ const Layout = () => {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Sản phẩm', href: '/products', icon: Package },
-    { name: 'Danh mục', href: '/categories', icon: FolderTree },
-    { name: 'Tạo đơn hàng', href: '/orders/create', icon: ShoppingCart },
-    { name: 'Đơn hàng', href: '/orders', icon: ShoppingCart },
-    { name: 'Đặt hàng', href: '/purchase-orders', icon: Package },
-    { name: 'Khách hàng', href: '/customers', icon: Users },
-    { name: 'Nhà cung cấp', href: '/suppliers', icon: Building },
-    { name: 'Xuất hủy', href: '/stock-adjustments', icon: Warehouse },
-    { name: 'Đơn vị vận chuyển', href: '/shipping-carriers', icon: Truck },
-    { name: 'Vận đơn', href: '/shipments', icon: Truck },
-    { name: 'Khuyến mãi', href: '/promotions', icon: Tag },
-    { name: 'Kho hàng', href: '/inventory', icon: Warehouse },
-    { name: 'Người dùng', href: '/users', icon: Users },
-    { name: 'Báo cáo', href: '/reports', icon: FileText },
+  const navigationGroups = [
+    {
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'Sản phẩm',
+      items: [
+        { name: 'Sản phẩm', href: '/products', icon: Package },
+        { name: 'Danh mục', href: '/categories', icon: FolderTree },
+      ]
+    },
+    {
+      title: 'Đơn hàng',
+      items: [
+        { name: 'Tạo đơn hàng', href: '/orders/create', icon: ShoppingCart },
+        { name: 'Hóa đơn', href: '/orders', icon: ShoppingCart },
+        { name: 'Đặt hàng', href: '/purchase-orders', icon: Package },
+        { name: 'Vận đơn', href: '/shipments', icon: Truck },
+        { name: 'Đơn vị vận chuyển', href: '/shipping-carriers', icon: Truck },
+      ]
+    },
+    {
+      title: 'Nhà cung cấp',
+      items: [
+        { name: 'Nhà cung cấp', href: '/suppliers', icon: Building },
+        { name: 'Xuất hủy', href: '/stock-adjustments', icon: Warehouse },
+      ]
+    },
+    {
+      title: 'Khách hàng',
+      items: [
+        { name: 'Khách hàng', href: '/customers', icon: Users },
+        { name: 'Khuyến mãi', href: '/promotions', icon: Tag },
+      ]
+    },
+    {
+      items: [
+        { name: 'Kho hàng', href: '/inventory', icon: Warehouse },
+        { name: 'Người dùng', href: '/users', icon: Users },
+        { name: 'Báo cáo', href: '/reports', icon: FileText },
+      ]
+    },
   ]
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) => {
+    // Exact match for dashboard
+    if (path === '/dashboard') {
+      return location.pathname === path
+    }
+    // For other paths, check exact match or if it's a parent path
+    // But avoid matching /orders with /orders/create - we want exact match for /orders
+    if (location.pathname === path) {
+      return true
+    }
+    // Only match sub-paths if the current path is longer
+    // This prevents /products from matching /categories
+    if (location.pathname.startsWith(path + '/')) {
+      return true
+    }
+    return false
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -71,27 +115,42 @@ const Layout = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item) => {
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
-                    ${isActive(item.href)
-                      ? 'bg-primary-600 text-white shadow-md transform scale-105'
-                      : 'text-gray-700 hover:bg-gray-100 hover:translate-x-1'
-                    }
-                  `}
-                >
-                  <Icon className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-white' : ''}`} />
-                  {item.name}
-                </Link>
-              )
-            })}
+          <nav className="flex-1 px-4 py-6 overflow-y-auto">
+            <div className="space-y-6">
+              {navigationGroups.map((group, groupIndex) => (
+                <div key={groupIndex}>
+                  {group.title && (
+                    <div className="px-4 mb-2">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {group.title}
+                      </h3>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`
+                            flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
+                            ${isActive(item.href)
+                              ? 'bg-primary-600 text-white shadow-md transform scale-105'
+                              : 'text-gray-700 hover:bg-gray-100 hover:translate-x-1'
+                            }
+                          `}
+                        >
+                          <Icon className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-white' : ''}`} />
+                          {item.name}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </nav>
 
           {/* User info */}

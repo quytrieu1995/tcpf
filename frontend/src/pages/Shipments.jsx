@@ -56,9 +56,16 @@ const Shipments = () => {
   const fetchCarriers = async () => {
     try {
       const response = await axios.get('/api/shipping?active_only=true')
-      setCarriers(response.data)
+      // Ensure response.data is an array
+      if (Array.isArray(response.data)) {
+        setCarriers(response.data)
+      } else {
+        setCarriers([])
+        console.warn('Carriers response is not an array:', response.data)
+      }
     } catch (error) {
       console.error('Error fetching carriers:', error)
+      setCarriers([]) // Set empty array on error
     }
   }
 

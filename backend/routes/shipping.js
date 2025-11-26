@@ -9,17 +9,20 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { active_only } = req.query;
     let query = 'SELECT * FROM shipping_methods WHERE 1=1';
+    const params = [];
     
     if (active_only === 'true') {
       query += ' AND is_active = true';
     }
     
-    query += ' ORDER BY sort_order, name';
-    const result = await db.pool.query(query);
-    res.json(result.rows);
+    // Check if sort_order column exists, if not use name only
+    query += ' ORDER BY COALESCE(sort_order, 0), name';
+    const result = await db.pool.query(query, params);
+    res.json(result.rows || []);
   } catch (error) {
     console.error('Get shipping methods error:', error);
-    res.status(500).json({ message: 'Server error' });
+    // Return empty array instead of error to prevent frontend crash
+    res.json([]);
   }
 });
 

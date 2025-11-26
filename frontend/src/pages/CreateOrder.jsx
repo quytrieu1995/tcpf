@@ -60,9 +60,17 @@ const CreateOrder = () => {
   const fetchShippingMethods = async () => {
     try {
       const response = await axios.get('/api/shipping?active_only=true')
-      setShippingMethods(response.data)
+      // Ensure response.data is an array
+      if (Array.isArray(response.data)) {
+        setShippingMethods(response.data)
+      } else {
+        setShippingMethods([])
+        console.warn('Shipping methods response is not an array:', response.data)
+      }
     } catch (error) {
       console.error('Error fetching shipping methods:', error)
+      setShippingMethods([]) // Set empty array on error
+      toast.error('Không thể tải danh sách đơn vị vận chuyển')
     }
   }
 

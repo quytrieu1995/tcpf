@@ -27,6 +27,7 @@ const Layout = () => {
     { name: 'Sản phẩm', href: '/products', icon: Package },
     { name: 'Danh mục', href: '/categories', icon: FolderTree },
     { name: 'Đơn hàng', href: '/orders', icon: ShoppingCart },
+    { name: 'Đặt hàng', href: '/purchase-orders', icon: Package },
     { name: 'Khách hàng', href: '/customers', icon: Users },
     { name: 'Khuyến mãi', href: '/promotions', icon: Tag },
     { name: 'Kho hàng', href: '/inventory', icon: Warehouse },

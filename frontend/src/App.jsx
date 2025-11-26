@@ -11,6 +11,7 @@ import Categories from './pages/Categories'
 import Promotions from './pages/Promotions'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
+import PurchaseOrders from './pages/PurchaseOrders'
 import Layout from './components/Layout'
 
 function App() {
@@ -34,9 +35,10 @@ function App() {
               <Route path="categories" element={<Categories />} />
               <Route path="orders" element={<Orders />} />
               <Route path="customers" element={<Customers />} />
-              <Route path="promotions" element={<Promotions />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="reports" element={<Reports />} />
+            <Route path="promotions" element={<Promotions />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="reports" element={<Reports />} />
             </Route>
           </Routes>
         </Router>

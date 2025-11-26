@@ -389,6 +389,7 @@ const ShippingCarriers = () => {
                     <option value="ghn">Giao Hàng Nhanh (GHN)</option>
                     <option value="viettel_post">Viettel Post</option>
                     <option value="ghtk">Giao Hàng Tiết Kiệm (GHTK)</option>
+                    <option value="jnt">J&T Express</option>
                     <option value="manual">Thủ công (Không có API)</option>
                   </select>
                 </div>

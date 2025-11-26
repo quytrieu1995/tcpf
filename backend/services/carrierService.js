@@ -36,6 +36,9 @@ class CarrierService {
         case 'ghtk':
           statusData = await this.syncGHTK(shipmentData);
           break;
+        case 'jnt':
+          statusData = await this.syncJNT(shipmentData);
+          break;
         case 'manual':
         default:
           throw new Error('Manual tracking - no API sync available');
@@ -146,6 +149,9 @@ class CarrierService {
           break;
         case 'ghtk':
           result = await this.testGHTK(carrierData);
+          break;
+        case 'jnt':
+          result = await this.testJNT(carrierData);
           break;
         default:
           throw new Error('Unsupported API type');
@@ -313,11 +319,148 @@ class CarrierService {
     }
   }
 
+  // J&T Express Integration
+  async syncJNT(shipmentData) {
+    try {
+      const config = shipmentData.api_config || {};
+      const apiEndpoint = shipmentData.api_endpoint || 'https://api.jtexpress.vn';
+      
+      // J&T API thường sử dụng POST với body
+      const response = await axios.post(
+        `${apiEndpoint}/api/v1/tracking`,
+        {
+          waybill_no: shipmentData.tracking_number
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${shipmentData.api_key}`,
+            'Content-Type': 'application/json',
+            'X-API-Key': shipmentData.api_key
+          }
+        }
+      );
+
+      const data = response.data?.data || response.data;
+      if (!data) {
+        throw new Error('Invalid response from J&T API');
+      }
+
+      // Parse J&T status format
+      let status = 'unknown';
+      let message = '';
+      let events = [];
+
+      if (data.status) {
+        status = data.status;
+        message = data.status_description || data.status_name || '';
+      }
+
+      if (data.tracking_details || data.tracking_events || data.details) {
+        events = data.tracking_details || data.tracking_events || data.details || [];
+        // Format events to standard format
+        events = events.map(event => ({
+          status: event.status || event.status_code,
+          description: event.description || event.remark || event.note,
+          time: event.time || event.datetime || event.created_at,
+          location: event.location || event.station || event.warehouse
+        }));
+      }
+
+      return {
+        status: status,
+        message: message,
+        events: events
+      };
+    } catch (error) {
+      console.error('J&T sync error:', error);
+      // Fallback: try alternative endpoint format
+      try {
+        const altResponse = await axios.get(
+          `${shipmentData.api_endpoint}/tracking/${shipmentData.tracking_number}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${shipmentData.api_key}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        const altData = altResponse.data?.data || altResponse.data;
+        return {
+          status: altData?.status || 'unknown',
+          message: altData?.status_description || '',
+          events: altData?.tracking_details || []
+        };
+      } catch (altError) {
+        throw new Error(`J&T API error: ${error.message}`);
+      }
+    }
+  }
+
+  async testJNT(carrierData) {
+    try {
+      const apiEndpoint = carrierData.api_endpoint || 'https://api.jtexpress.vn';
+      
+      // Try to test connection with a simple API call
+      // J&T thường có endpoint để check account hoặc get shop info
+      const response = await axios.get(
+        `${apiEndpoint}/api/v1/account/info`,
+        {
+          headers: {
+            'Authorization': `Bearer ${carrierData.api_key}`,
+            'Content-Type': 'application/json',
+            'X-API-Key': carrierData.api_key
+          }
+        }
+      );
+      
+      return { success: true, message: 'Connection successful' };
+    } catch (error) {
+      // If account info fails, try alternative test endpoint
+      try {
+        const altResponse = await axios.post(
+          `${carrierData.api_endpoint || 'https://api.jtexpress.vn'}/api/v1/auth/verify`,
+          {},
+          {
+            headers: {
+              'Authorization': `Bearer ${carrierData.api_key}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        return { success: true, message: 'Connection successful' };
+      } catch (altError) {
+        return { success: false, message: error.message || 'Connection failed' };
+      }
+    }
+  }
+
   /**
    * Map carrier status to internal status
    */
   mapCarrierStatusToInternal(carrierStatus, apiType) {
     const statusLower = (carrierStatus || '').toLowerCase();
+    
+    // J&T specific status mappings
+    if (apiType === 'jnt') {
+      if (statusLower.includes('delivered') || statusLower.includes('đã giao') || 
+          statusLower.includes('giao thành công') || statusLower === 'delivered' ||
+          statusLower === 'delivery_success') {
+        return 'delivered';
+      }
+      if (statusLower.includes('transit') || statusLower.includes('đang vận chuyển') ||
+          statusLower.includes('in_transit') || statusLower === 'in_transit' ||
+          statusLower === 'transporting') {
+        return 'in_transit';
+      }
+      if (statusLower.includes('cancelled') || statusLower.includes('hủy') ||
+          statusLower === 'cancelled' || statusLower === 'cancel') {
+        return 'cancelled';
+      }
+      if (statusLower.includes('pending') || statusLower.includes('chờ') ||
+          statusLower === 'pending' || statusLower === 'picked_up') {
+        return 'pending';
+      }
+    }
     
     // Common status mappings
     if (statusLower.includes('delivered') || statusLower.includes('đã giao') || statusLower === 'delivered') {

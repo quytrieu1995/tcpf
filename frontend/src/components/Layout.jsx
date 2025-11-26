@@ -36,7 +36,7 @@ const Layout = () => {
   const isActive = (path) => location.pathname === path
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -107,9 +107,9 @@ const Layout = () => {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col lg:ml-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg shadow-sm border-b border-gray-200 h-16 flex items-center px-6">
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg shadow-sm border-b border-gray-200 h-16 flex items-center px-4 sm:px-6 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-gray-100"
@@ -127,7 +127,7 @@ const Layout = () => {
         </div>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6 max-w-7xl mx-auto">
+        <main className="flex-1 p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-y-auto">
           <Outlet />
         </main>
       </div>

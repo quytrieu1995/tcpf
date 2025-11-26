@@ -1,0 +1,215 @@
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const db = require('../config/database');
+const { authenticate } = require('../middleware/auth');
+const router = express.Router();
+
+// Get all orders
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    let query = `
+      SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramCount = 0;
+
+    if (status) {
+      paramCount++;
+      query += ` AND o.status = $${paramCount}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY o.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+
+    const result = await db.pool.query(query, params);
+    
+    // Get order items for each order
+    for (let order of result.rows) {
+      const items = await db.pool.query(
+        `SELECT oi.*, p.name as product_name 
+         FROM order_items oi 
+         JOIN products p ON oi.product_id = p.id 
+         WHERE oi.order_id = $1`,
+        [order.id]
+      );
+      order.items = items.rows;
+    }
+
+    const countResult = await db.pool.query('SELECT COUNT(*) FROM orders');
+    
+    res.json({
+      orders: result.rows,
+      total: parseInt(countResult.rows[0].count),
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Get orders error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get single order
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const orderResult = await db.pool.query(
+      `SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.address as customer_address
+       FROM orders o
+       LEFT JOIN customers c ON o.customer_id = c.id
+       WHERE o.id = $1`,
+      [req.params.id]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const order = orderResult.rows[0];
+    const items = await db.pool.query(
+      `SELECT oi.*, p.name as product_name, p.image_url as product_image
+       FROM order_items oi
+       JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = $1`,
+      [req.params.id]
+    );
+    order.items = items.rows;
+
+    res.json(order);
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create order
+router.post('/', authenticate, [
+  body('customer_id').optional().isInt(),
+  body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
+  body('items.*.product_id').isInt().withMessage('Product ID is required'),
+  body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { customer_id, items, payment_method, notes } = req.body;
+    const client = await db.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Generate order number
+      const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Calculate total
+      let totalAmount = 0;
+      for (const item of items) {
+        const product = await client.query('SELECT price, stock FROM products WHERE id = $1', [item.product_id]);
+        if (product.rows.length === 0) {
+          throw new Error(`Product ${item.product_id} not found`);
+        }
+        if (product.rows[0].stock < item.quantity) {
+          throw new Error(`Insufficient stock for product ${item.product_id}`);
+        }
+        totalAmount += parseFloat(product.rows[0].price) * item.quantity;
+      }
+
+      // Create order
+      const orderResult = await client.query(
+        'INSERT INTO orders (customer_id, order_number, total_amount, payment_method, notes, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [customer_id || null, orderNumber, totalAmount, payment_method, notes, 'pending']
+      );
+
+      const order = orderResult.rows[0];
+
+      // Create order items and update stock
+      for (const item of items) {
+        const product = await client.query('SELECT price FROM products WHERE id = $1', [item.product_id]);
+        const price = parseFloat(product.rows[0].price);
+        const subtotal = price * item.quantity;
+
+        await client.query(
+          'INSERT INTO order_items (order_id, product_id, quantity, price, subtotal) VALUES ($1, $2, $3, $4, $5)',
+          [order.id, item.product_id, item.quantity, price, subtotal]
+        );
+
+        // Update product stock
+        await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [item.quantity, item.product_id]);
+      }
+
+      await client.query('COMMIT');
+
+      // Fetch complete order with items
+      const completeOrder = await db.pool.query(
+        `SELECT o.*, c.name as customer_name FROM orders o LEFT JOIN customers c ON o.customer_id = c.id WHERE o.id = $1`,
+        [order.id]
+      );
+      const orderItems = await db.pool.query(
+        `SELECT oi.*, p.name as product_name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = $1`,
+        [order.id]
+      );
+      completeOrder.rows[0].items = orderItems.rows;
+
+      res.status(201).json(completeOrder.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Create order error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Update order status
+router.patch('/:id/status', authenticate, [
+  body('status').isIn(['pending', 'processing', 'completed', 'cancelled']).withMessage('Invalid status')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { status } = req.body;
+    const result = await db.pool.query(
+      'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete order
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const result = await db.pool.query('DELETE FROM orders WHERE id = $1 RETURNING *', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    res.json({ message: 'Order deleted successfully' });
+  } catch (error) {
+    console.error('Delete order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;
+

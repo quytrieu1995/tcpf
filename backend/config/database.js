@@ -5,10 +5,14 @@ dotenv.config();
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
+  port: parseInt(process.env.DB_PORT) || 5432,
   database: process.env.DB_NAME || 'sales_db',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
+  // Connection pool settings
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
 // Test connection
@@ -23,6 +27,18 @@ pool.on('error', (err) => {
 
 const init = async () => {
   try {
+    // Validate required environment variables
+    if (!process.env.DB_PASSWORD) {
+      console.warn('⚠️  Warning: DB_PASSWORD not set in environment variables');
+      console.warn('   Please create backend/.env file with database configuration');
+      console.warn('   See DATABASE_CONNECTION_FIX.md for details');
+    }
+    
+    // Test connection
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+    console.log('✅ Database connection established');
     // Create tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -541,7 +557,25 @@ const init = async () => {
 
     console.log('Database initialized successfully');
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('❌ Error initializing database:', error.message);
+    console.error(`   Code: ${error.code}`);
+    
+    if (error.code === 'ECONNREFUSED') {
+      console.error('\n💡 Giải pháp:');
+      console.error('   1. Kiểm tra PostgreSQL có đang chạy không');
+      console.error('   2. Kiểm tra file backend/.env có đúng cấu hình không');
+      console.error('   3. Chạy: npm run test-db để kiểm tra kết nối');
+      console.error('   4. Xem DATABASE_CONNECTION_FIX.md để biết thêm chi tiết');
+    } else if (error.code === '28P01') {
+      console.error('\n💡 Giải pháp:');
+      console.error('   - Mật khẩu database không đúng');
+      console.error('   - Kiểm tra DB_PASSWORD trong file backend/.env');
+    } else if (error.code === '3D000') {
+      console.error('\n💡 Giải pháp:');
+      console.error('   - Database chưa được tạo');
+      console.error('   - Chạy: npm run migrate');
+    }
+    
     throw error;
   }
 };

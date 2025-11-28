@@ -37,10 +37,16 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get('/api/dashboard/stats?period=30')
+      const response = await api.get('/dashboard/stats?period=30')
       setStats(response.data)
     } catch (error) {
       console.error('Error fetching stats:', error)
+      if (!error.response) {
+        console.error('Backend không phản hồi. Kiểm tra:');
+        console.error('1. Backend có đang chạy không? (npm run dev trong thư mục backend)');
+        console.error('2. Backend có chạy trên port 5000 không?');
+        console.error('3. Kiểm tra CORS configuration');
+      }
     } finally {
       setLoading(false)
     }

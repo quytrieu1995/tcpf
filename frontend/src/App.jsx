@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './components/ToastContainer'
 import PrivateRoute from './components/PrivateRoute'
+import BackendConnectionCheck from './components/BackendConnectionCheck'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
@@ -27,6 +28,11 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/health" element={
+              <div className="p-8">
+                <BackendConnectionCheck />
+              </div>
+            } />
             <Route
               path="/"
               element={

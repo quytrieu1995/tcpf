@@ -20,19 +20,18 @@ export const AuthProvider = ({ children }) => {
     const userData = localStorage.getItem('user')
     if (token && userData) {
       setUser(JSON.parse(userData))
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      // Token sẽ được tự động thêm bởi api interceptor
     }
     setLoading(false)
   }, [])
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { username, password })
+      const response = await api.post('/auth/login', { username, password })
       const { token, user } = response.data
       
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       setUser(user)
       
       return { success: true }
@@ -47,7 +46,6 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-    delete axios.defaults.headers.common['Authorization']
     setUser(null)
   }
 

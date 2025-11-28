@@ -104,7 +104,25 @@ const Products = () => {
       fetchProducts()
     } catch (error) {
       console.error('Error saving product:', error)
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu sản phẩm')
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // More specific error messages
+      if (error.response?.status === 503) {
+        toast.error('Không thể kết nối đến database. Vui lòng kiểm tra backend.')
+      } else if (error.response?.status === 400) {
+        toast.error(error.response?.data?.message || 'Dữ liệu không hợp lệ')
+      } else if (error.response?.status === 502) {
+        toast.error('Backend không phản hồi. Vui lòng kiểm tra server.')
+      } else if (!error.response) {
+        toast.error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.')
+      } else {
+        toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu sản phẩm')
+      }
     } finally {
       setSubmitting(false)
     }

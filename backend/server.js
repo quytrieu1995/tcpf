@@ -69,8 +69,35 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
+  console.error('Unhandled error:', err);
+  console.error('Error stack:', err.stack);
+  console.error('Request:', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    query: req.query
+  });
+  
+  // Don't send error details in production
+  const errorMessage = process.env.NODE_ENV === 'development' 
+    ? err.message 
+    : 'Internal server error';
+    
+  res.status(err.status || 500).json({ 
+    message: 'Something went wrong!', 
+    error: errorMessage 
+  });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
 
 const PORT = process.env.PORT || 5000;

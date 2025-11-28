@@ -69,15 +69,48 @@ router.post('/', authenticate, [
     }
 
     const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold } = req.body;
+    
+    // Validate required fields
+    if (!name || !price) {
+      return res.status(400).json({ message: 'Name and price are required' });
+    }
+
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const result = await db.pool.query(
       'INSERT INTO products (name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
-      [name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold || 10]
+      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, image_url || null, sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create product error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
+    
+    // Return more specific error messages
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ message: 'SKU or barcode already exists' });
+    }
+    if (error.code === '23503') { // Foreign key violation
+      return res.status(400).json({ message: 'Invalid category or supplier ID' });
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -85,9 +118,21 @@ router.post('/', authenticate, [
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active } = req.body;
+    
+    // Validate required fields
+    if (!name || !price) {
+      return res.status(400).json({ message: 'Name and price are required' });
+    }
+
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const result = await db.pool.query(
       'UPDATE products SET name = $1, description = $2, price = $3, stock = $4, category = $5, category_id = $6, image_url = $7, sku = $8, barcode = $9, cost_price = $10, weight = $11, supplier_id = $12, low_stock_threshold = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15 RETURNING *',
-      [name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active !== false, req.params.id]
+      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, image_url || null, sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10, is_active !== false, req.params.id]
     );
 
     if (result.rows.length === 0) {
@@ -97,7 +142,28 @@ router.put('/:id', authenticate, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update product error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      stack: error.stack
+    });
+    
+    // Return more specific error messages
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ message: 'SKU or barcode already exists' });
+    }
+    if (error.code === '23503') { // Foreign key violation
+      return res.status(400).json({ message: 'Invalid category or supplier ID' });
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

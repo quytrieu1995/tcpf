@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, Shield, User } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
@@ -45,7 +45,7 @@ const Users = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/users')
+      const response = await api.get('/users')
       setUsers(response.data)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -59,10 +59,10 @@ const Users = () => {
     e.preventDefault()
     try {
       if (editingUser) {
-        await axios.put(`/api/users/${editingUser.id}`, formData)
+        await api.put(`/users/${editingUser.id}`, formData)
         toast.success('Cập nhật người dùng thành công!')
       } else {
-        await axios.post('/api/users', formData)
+        await api.post('/users', formData)
         toast.success('Tạo người dùng thành công!')
       }
       setShowModal(false)
@@ -93,7 +93,7 @@ const Users = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return
     
     try {
-      await axios.delete(`/api/users/${id}`)
+      await api.delete(`/users/${id}`)
       toast.success('Xóa người dùng thành công!')
       fetchUsers()
     } catch (error) {

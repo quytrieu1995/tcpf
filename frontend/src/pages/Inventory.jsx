@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Package, AlertTriangle, TrendingUp, TrendingDown, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -25,9 +25,9 @@ const Inventory = () => {
   const fetchData = async () => {
     try {
       const [transactionsRes, lowStockRes, summaryRes] = await Promise.all([
-        axios.get('/api/inventory/transactions?limit=50'),
-        axios.get('/api/inventory/low-stock'),
-        axios.get('/api/inventory/summary')
+        api.get('/inventory/transactions?limit=50'),
+        api.get('/inventory/low-stock'),
+        api.get('/inventory/summary')
       ])
       setTransactions(transactionsRes.data)
       setLowStock(lowStockRes.data)
@@ -41,7 +41,7 @@ const Inventory = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -51,7 +51,7 @@ const Inventory = () => {
   const handleAdjust = async (e) => {
     e.preventDefault()
     try {
-      await axios.post('/api/inventory/adjust', formData)
+      await api.post('/inventory/adjust', formData)
       setShowAdjustModal(false)
       setFormData({ product_id: '', type: 'adjustment', quantity: 0, notes: '' })
       fetchData()

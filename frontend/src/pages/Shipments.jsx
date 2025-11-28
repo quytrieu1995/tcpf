@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Eye, Package, Truck, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
@@ -34,7 +34,7 @@ const Shipments = () => {
   const fetchShipments = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/shipments?limit=1000')
+      const response = await api.get('/shipments?limit=1000')
       setShipments(response.data.shipments || [])
     } catch (error) {
       console.error('Error fetching shipments:', error)
@@ -46,7 +46,7 @@ const Shipments = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get('/api/orders?limit=1000')
+      const response = await api.get('/orders?limit=1000')
       setOrders(response.data.orders || [])
     } catch (error) {
       console.error('Error fetching orders:', error)
@@ -55,7 +55,7 @@ const Shipments = () => {
 
   const fetchCarriers = async () => {
     try {
-      const response = await axios.get('/api/shipping?active_only=true')
+      const response = await api.get('/shipping?active_only=true')
       // Ensure response.data is an array
       if (Array.isArray(response.data)) {
         setCarriers(response.data)
@@ -72,7 +72,7 @@ const Shipments = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await axios.post('/api/shipments', formData)
+      await api.post('/shipments', formData)
       toast.success('Tạo vận đơn thành công!')
       setShowModal(false)
       resetForm()
@@ -85,7 +85,7 @@ const Shipments = () => {
 
   const handleViewDetails = async (shipment) => {
     try {
-      const response = await axios.get(`/api/shipments/${shipment.id}`)
+      const response = await api.get(`/shipments/${shipment.id}`)
       setSelectedShipment(response.data)
       setShowDetailsModal(true)
     } catch (error) {
@@ -96,7 +96,7 @@ const Shipments = () => {
 
   const handleStatusChange = async (shipmentId, newStatus) => {
     try {
-      await axios.patch(`/api/shipments/${shipmentId}/status`, { 
+      await api.patch(`/shipments/${shipmentId}/status`, { 
         status: newStatus,
         delivered_at: newStatus === 'delivered' ? new Date().toISOString() : null
       })
@@ -110,11 +110,11 @@ const Shipments = () => {
 
   const handleSyncShipment = async (shipmentId) => {
     try {
-      const response = await axios.post(`/api/shipments/${shipmentId}/sync`)
+      const response = await api.post(`/shipments/${shipmentId}/sync`)
       toast.success('Đồng bộ trạng thái thành công!')
       fetchShipments()
       if (selectedShipment?.id === shipmentId) {
-        const updated = await axios.get(`/api/shipments/${shipmentId}`)
+        const updated = await api.get(`/shipments/${shipmentId}`)
         setSelectedShipment(updated.data)
       }
     } catch (error) {

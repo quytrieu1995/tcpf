@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Eye, Download, Filter, X } from 'lucide-react'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -27,14 +27,14 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      let url = `/api/orders?status=${statusFilter}&limit=1000`
+      let url = `/orders?status=${statusFilter}&limit=1000`
       if (startDate) {
         url += `&start_date=${startDate}`
       }
       if (endDate) {
         url += `&end_date=${endDate}`
       }
-      const response = await axios.get(url)
+      const response = await api.get(url)
       setOrders(response.data.orders)
     } catch (error) {
       console.error('Error fetching orders:', error)
@@ -122,7 +122,7 @@ const Orders = () => {
 
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      await axios.patch(`/api/orders/${orderId}/status`, { status: newStatus })
+      await api.patch(`/orders/${orderId}/status`, { status: newStatus })
       toast.success('Cập nhật trạng thái thành công!')
       fetchOrders()
       if (selectedOrder?.id === orderId) {
@@ -136,7 +136,7 @@ const Orders = () => {
 
   const handleViewDetails = async (order) => {
     try {
-      const response = await axios.get(`/api/orders/${order.id}`)
+      const response = await api.get(`/orders/${order.id}`)
       setSelectedOrder(response.data)
       setShowDetailsModal(true)
     } catch (error) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, Folder, FolderOpen } from 'lucide-react'
 
 const Categories = () => {
@@ -22,7 +22,7 @@ const Categories = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('/api/categories')
+      const response = await api.get('/categories')
       setCategories(response.data)
     } catch (error) {
       console.error('Error fetching categories:', error)
@@ -35,9 +35,9 @@ const Categories = () => {
     e.preventDefault()
     try {
       if (editingCategory) {
-        await axios.put(`/api/categories/${editingCategory.id}`, formData)
+        await api.put(`/categories/${editingCategory.id}`, formData)
       } else {
-        await axios.post('/api/categories', formData)
+        await api.post('/categories', formData)
       }
       setShowModal(false)
       setEditingCategory(null)
@@ -66,7 +66,7 @@ const Categories = () => {
     if (!confirm('Bạn có chắc chắn muốn xóa danh mục này?')) return
     
     try {
-      await axios.delete(`/api/categories/${id}`)
+      await api.delete(`/categories/${id}`)
       fetchCategories()
     } catch (error) {
       console.error('Error deleting category:', error)

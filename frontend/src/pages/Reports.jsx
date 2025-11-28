@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { FileText, Download, TrendingUp, DollarSign, ShoppingCart, Users } from 'lucide-react'
 import {
   LineChart,
@@ -33,9 +33,9 @@ const Reports = () => {
     try {
       setLoading(true)
       const [sales, revenue, products] = await Promise.all([
-        axios.get(`/api/reports/sales?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
-        axios.get(`/api/reports/revenue?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
-        axios.get(`/api/reports/products?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`)
+        api.get(`/reports/sales?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
+        api.get(`/reports/revenue?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`),
+        api.get(`/reports/products?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`)
       ])
       setSalesReport(sales.data)
       setRevenueReport(revenue.data)
@@ -49,8 +49,8 @@ const Reports = () => {
 
   const handleExport = async (type) => {
     try {
-      const response = await axios.get(
-        `/api/reports/export?type=${type}&start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`,
+      const response = await api.get(
+        `/reports/export?type=${type}&start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`,
         { responseType: 'blob' }
       )
       const url = window.URL.createObjectURL(new Blob([response.data]))

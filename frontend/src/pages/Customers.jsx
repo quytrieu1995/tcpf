@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, User, Mail, Phone, MapPin, DollarSign, ShoppingCart } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
@@ -35,7 +35,7 @@ const Customers = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/customers?limit=1000')
+      const response = await api.get('/customers?limit=1000')
       setCustomers(response.data.customers || response.data || [])
     } catch (error) {
       console.error('Error fetching customers:', error)
@@ -47,7 +47,7 @@ const Customers = () => {
 
   const fetchCustomerGroups = async () => {
     try {
-      const response = await axios.get('/api/customer-groups')
+      const response = await api.get('/customer-groups')
       setCustomerGroups(response.data)
     } catch (error) {
       console.error('Error fetching customer groups:', error)
@@ -63,10 +63,10 @@ const Customers = () => {
 
     try {
       if (editingCustomer) {
-        await axios.put(`/api/customers/${editingCustomer.id}`, formData)
+        await api.put(`/customers/${editingCustomer.id}`, formData)
         toast.success('Cập nhật khách hàng thành công!')
       } else {
-        await axios.post('/api/customers', formData)
+        await api.post('/customers', formData)
         toast.success('Thêm khách hàng thành công!')
       }
       setShowModal(false)
@@ -98,7 +98,7 @@ const Customers = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa khách hàng này?')) return
     
     try {
-      await axios.delete(`/api/customers/${id}`)
+      await api.delete(`/customers/${id}`)
       toast.success('Xóa khách hàng thành công!')
       fetchCustomers()
     } catch (error) {

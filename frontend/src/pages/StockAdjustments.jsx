@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Eye, Package, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
@@ -30,7 +30,7 @@ const StockAdjustments = () => {
   const fetchStockOuts = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/stock/stock-outs?limit=1000')
+      const response = await api.get('/stock/stock-outs?limit=1000')
       setStockOuts(response.data)
     } catch (error) {
       console.error('Error fetching stock outs:', error)
@@ -42,7 +42,7 @@ const StockAdjustments = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -65,7 +65,7 @@ const StockAdjustments = () => {
         return
       }
 
-      await axios.post('/api/stock/stock-out', {
+      await api.post('/stock/stock-out', {
         type: formData.type,
         items,
         notes: formData.notes

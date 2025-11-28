@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Eye, Package, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
@@ -34,8 +34,8 @@ const PurchaseOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const url = `/api/purchase-orders?status=${statusFilter}&limit=1000`
-      const response = await axios.get(url)
+      const url = `/purchase-orders?status=${statusFilter}&limit=1000`
+      const response = await api.get(url)
       setOrders(response.data.orders || [])
     } catch (error) {
       console.error('Error fetching purchase orders:', error)
@@ -47,7 +47,7 @@ const PurchaseOrders = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await axios.get('/api/suppliers?limit=1000')
+      const response = await api.get('/suppliers?limit=1000')
       setSuppliers(response.data)
     } catch (error) {
       console.error('Error fetching suppliers:', error)
@@ -56,7 +56,7 @@ const PurchaseOrders = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -65,7 +65,7 @@ const PurchaseOrders = () => {
 
   const handleViewDetails = async (order) => {
     try {
-      const response = await axios.get(`/api/purchase-orders/${order.id}`)
+      const response = await api.get(`/purchase-orders/${order.id}`)
       setSelectedOrder(response.data)
       setShowDetailsModal(true)
     } catch (error) {
@@ -89,7 +89,7 @@ const PurchaseOrders = () => {
     }
 
     try {
-      await axios.post(`/api/purchase-orders/${selectedOrder.id}/receive`, {
+      await api.post(`/purchase-orders/${selectedOrder.id}/receive`, {
         received_items: receivedItems
       })
       toast.success('Nhận hàng thành công!')
@@ -113,7 +113,7 @@ const PurchaseOrders = () => {
     }
 
     try {
-      await axios.post('/api/purchase-orders', formData)
+      await api.post('/purchase-orders', formData)
       toast.success('Tạo đơn đặt hàng thành công!')
       setShowCreateModal(false)
       setFormData({

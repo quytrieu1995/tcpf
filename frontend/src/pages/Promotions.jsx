@@ -30,7 +30,7 @@ const Promotions = () => {
 
   const fetchPromotions = async () => {
     try {
-      const response = await axios.get('/api/promotions')
+      const response = await api.get('/promotions')
       setPromotions(response.data)
     } catch (error) {
       console.error('Error fetching promotions:', error)
@@ -41,7 +41,7 @@ const Promotions = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -52,9 +52,9 @@ const Promotions = () => {
     e.preventDefault()
     try {
       if (editingPromotion) {
-        await axios.put(`/api/promotions/${editingPromotion.id}`, formData)
+        await api.put(`/promotions/${editingPromotion.id}`, formData)
       } else {
-        await axios.post('/api/promotions', formData)
+        await api.post('/promotions', formData)
       }
       setShowModal(false)
       setEditingPromotion(null)
@@ -104,7 +104,7 @@ const Promotions = () => {
     if (!confirm('Bạn có chắc chắn muốn xóa khuyến mãi này?')) return
     
     try {
-      await axios.delete(`/api/promotions/${id}`)
+      await api.delete(`/promotions/${id}`)
       fetchPromotions()
     } catch (error) {
       console.error('Error deleting promotion:', error)

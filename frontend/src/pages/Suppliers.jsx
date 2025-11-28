@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, Search, Building } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
@@ -33,8 +33,8 @@ const Suppliers = () => {
   const fetchSuppliers = async () => {
     try {
       setLoading(true)
-      const url = `/api/suppliers${searchTerm ? `?search=${searchTerm}` : ''}`
-      const response = await axios.get(url)
+      const url = `/suppliers${searchTerm ? `?search=${searchTerm}` : ''}`
+      const response = await api.get(url)
       setSuppliers(response.data)
     } catch (error) {
       console.error('Error fetching suppliers:', error)
@@ -48,10 +48,10 @@ const Suppliers = () => {
     e.preventDefault()
     try {
       if (editingSupplier) {
-        await axios.put(`/api/suppliers/${editingSupplier.id}`, formData)
+        await api.put(`/suppliers/${editingSupplier.id}`, formData)
         toast.success('Cập nhật nhà cung cấp thành công!')
       } else {
-        await axios.post('/api/suppliers', formData)
+        await api.post('/suppliers', formData)
         toast.success('Tạo nhà cung cấp thành công!')
       }
       setShowModal(false)
@@ -83,7 +83,7 @@ const Suppliers = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?')) return
     
     try {
-      await axios.delete(`/api/suppliers/${id}`)
+      await api.delete(`/suppliers/${id}`)
       toast.success('Xóa nhà cung cấp thành công!')
       fetchSuppliers()
     } catch (error) {

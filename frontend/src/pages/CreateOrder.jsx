@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Minus, ShoppingCart, X } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import Button from '../components/Button'
@@ -41,7 +41,7 @@ const CreateOrder = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       // Ensure response.data.products is an array
       if (Array.isArray(response.data?.products)) {
         setProducts(response.data.products)
@@ -59,7 +59,7 @@ const CreateOrder = () => {
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get('/api/customers?limit=1000')
+      const response = await api.get('/customers?limit=1000')
       // Ensure response.data is an array
       if (Array.isArray(response.data)) {
         setCustomers(response.data)
@@ -75,7 +75,7 @@ const CreateOrder = () => {
 
   const fetchShippingMethods = async () => {
     try {
-      const response = await axios.get('/api/shipping?active_only=true')
+      const response = await api.get('/shipping?active_only=true')
       // Ensure response.data is an array
       if (Array.isArray(response.data)) {
         setShippingMethods(response.data)
@@ -127,7 +127,7 @@ const CreateOrder = () => {
 
   const createCustomer = async () => {
     try {
-      const response = await axios.post('/api/customers', customerForm)
+      const response = await api.post('/customers', customerForm)
       toast.success('Tạo khách hàng thành công!')
       setShowCustomerModal(false)
       setCustomerForm({ name: '', email: '', phone: '', address: '' })
@@ -171,7 +171,7 @@ const CreateOrder = () => {
         quantity: item.quantity
       }))
 
-      const response = await axios.post('/api/orders', {
+      const response = await api.post('/orders', {
         ...formData,
         items,
         customer_id: formData.customer_id || null

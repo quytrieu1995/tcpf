@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, Package, Image as ImageIcon, Grid, List } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import Modal from '../components/Modal'
@@ -42,7 +42,7 @@ const Products = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/products?limit=1000')
+      const response = await api.get('/products?limit=1000')
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -54,7 +54,7 @@ const Products = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('/api/categories')
+      const response = await api.get('/categories')
       // Flatten category tree for select
       const flattenCategories = (cats) => {
         let result = []
@@ -91,10 +91,10 @@ const Products = () => {
     try {
       setSubmitting(true)
       if (editingProduct) {
-        await axios.put(`/api/products/${editingProduct.id}`, formData)
+        await api.put(`/products/${editingProduct.id}`, formData)
         toast.success('Cập nhật sản phẩm thành công!')
       } else {
-        await axios.post('/api/products', formData)
+        await api.post('/products', formData)
         toast.success('Thêm sản phẩm thành công!')
       }
       setShowModal(false)
@@ -134,7 +134,7 @@ const Products = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return
     
     try {
-      await axios.delete(`/api/products/${id}`)
+      await api.delete(`/products/${id}`)
       toast.success('Xóa sản phẩm thành công!')
       fetchProducts()
     } catch (error) {

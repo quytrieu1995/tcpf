@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import api from '../config/api'
 import { Plus, Edit, Trash2, Truck, RefreshCw, Link2, CheckCircle, XCircle } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
@@ -36,7 +36,7 @@ const ShippingCarriers = () => {
   const fetchCarriers = async () => {
     try {
       setLoading(true)
-      const response = await axios.get('/api/shipping')
+      const response = await api.get('/shipping')
       setCarriers(response.data)
     } catch (error) {
       console.error('Error fetching carriers:', error)
@@ -50,10 +50,10 @@ const ShippingCarriers = () => {
     e.preventDefault()
     try {
       if (editingCarrier) {
-        await axios.put(`/api/shipping/${editingCarrier.id}`, formData)
+        await api.put(`/shipping/${editingCarrier.id}`, formData)
         toast.success('Cập nhật đơn vị vận chuyển thành công!')
       } else {
-        await axios.post('/api/shipping', formData)
+        await api.post('/shipping', formData)
         toast.success('Tạo đơn vị vận chuyển thành công!')
       }
       setShowModal(false)
@@ -87,7 +87,7 @@ const ShippingCarriers = () => {
   const handleTestConnection = async (carrierId) => {
     try {
       setTestingConnection(true)
-      const response = await axios.post(`/api/shipping/${carrierId}/test-connection`)
+      const response = await api.post(`/shipping/${carrierId}/test-connection`)
       if (response.data.success) {
         toast.success('Kết nối thành công!')
         fetchCarriers()
@@ -104,7 +104,7 @@ const ShippingCarriers = () => {
 
   const handleSyncCarrier = async (carrierId) => {
     try {
-      const response = await axios.post(`/api/shipments/carrier/${carrierId}/sync`)
+      const response = await api.post(`/shipments/carrier/${carrierId}/sync`)
       toast.success(`Đồng bộ hoàn tất: ${response.data.success}/${response.data.total} thành công`)
       fetchCarriers()
     } catch (error) {
@@ -117,7 +117,7 @@ const ShippingCarriers = () => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa đơn vị vận chuyển này?')) return
     
     try {
-      await axios.delete(`/api/shipping/${id}`)
+      await api.delete(`/shipping/${id}`)
       toast.success('Xóa đơn vị vận chuyển thành công!')
       fetchCarriers()
     } catch (error) {

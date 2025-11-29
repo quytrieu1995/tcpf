@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../config/api'
-import { Plus, Minus, ShoppingCart, X } from 'lucide-react'
+import { Plus, Minus, ShoppingCart, X, Search, User, Phone, Mail } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import Button from '../components/Button'
 import Input from '../components/Input'
@@ -18,6 +18,11 @@ const CreateOrder = () => {
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [selectedCustomerDisplay, setSelectedCustomerDisplay] = useState('')
+  const customerSearchRef = useRef(null)
+  const customerDropdownRef = useRef(null)
   const [formData, setFormData] = useState({
     customer_id: '',
     payment_method: 'cash',
@@ -39,6 +44,34 @@ const CreateOrder = () => {
     fetchCustomers()
     fetchShippingMethods()
   }, [])
+
+  // Handle click outside customer dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        customerSearchRef.current && 
+        !customerSearchRef.current.contains(event.target) &&
+        customerDropdownRef.current &&
+        !customerDropdownRef.current.contains(event.target)
+      ) {
+        setShowCustomerDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Update selected customer display when customer_id changes
+  useEffect(() => {
+    if (formData.customer_id) {
+      const customer = customers.find(c => c.id.toString() === formData.customer_id)
+      if (customer) {
+        setSelectedCustomerDisplay(`${customer.name}${customer.phone ? ` - ${customer.phone}` : ''}`)
+      }
+    } else {
+      setSelectedCustomerDisplay('')
+    }
+  }, [formData.customer_id, customers])
 
   const fetchProducts = async () => {
     try {
@@ -152,7 +185,11 @@ const CreateOrder = () => {
       
       // Set the newly created customer as selected
       if (response.data?.id) {
-        setFormData({ ...formData, customer_id: response.data.id.toString() })
+        const newCustomer = response.data
+        setFormData({ ...formData, customer_id: newCustomer.id.toString() })
+        setSelectedCustomerDisplay(`${newCustomer.name}${newCustomer.phone ? ` - ${newCustomer.phone}` : ''}`)
+        setCustomerSearchQuery('')
+        setShowCustomerDropdown(false)
       }
     } catch (error) {
       console.error('Error creating customer:', error)
@@ -259,6 +296,42 @@ const CreateOrder = () => {
       style: 'currency',
       currency: 'VND'
     }).format(value)
+  }
+
+  // Filter customers based on search query
+  const filteredCustomers = customerSearchQuery.trim() === '' 
+    ? [] 
+    : customers.filter(customer => {
+        const query = customerSearchQuery.toLowerCase()
+        return (
+          customer.name?.toLowerCase().includes(query) ||
+          customer.phone?.toLowerCase().includes(query) ||
+          customer.email?.toLowerCase().includes(query)
+        )
+      }).slice(0, 10) // Limit to 10 results
+
+  const handleCustomerSelect = (customer) => {
+    setFormData({ ...formData, customer_id: customer.id.toString() })
+    setSelectedCustomerDisplay(`${customer.name}${customer.phone ? ` - ${customer.phone}` : ''}`)
+    setCustomerSearchQuery('')
+    setShowCustomerDropdown(false)
+  }
+
+  const handleCustomerSearchChange = (e) => {
+    const value = e.target.value
+    setCustomerSearchQuery(value)
+    setShowCustomerDropdown(value.trim().length > 0)
+    if (value.trim().length === 0) {
+      setFormData({ ...formData, customer_id: '' })
+      setSelectedCustomerDisplay('')
+    }
+  }
+
+  const clearCustomerSelection = () => {
+    setFormData({ ...formData, customer_id: '' })
+    setCustomerSearchQuery('')
+    setSelectedCustomerDisplay('')
+    setShowCustomerDropdown(false)
   }
 
   const filteredProducts = Array.isArray(products) 
@@ -374,27 +447,135 @@ const CreateOrder = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Khách hàng
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.customer_id}
-                  onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Khách vãng lai</option>
-                  {Array.isArray(customers) && customers.map(customer => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.phone}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex gap-2 relative" ref={customerSearchRef}>
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={selectedCustomerDisplay || customerSearchQuery}
+                    onChange={handleCustomerSearchChange}
+                    onFocus={() => {
+                      if (customerSearchQuery.trim().length > 0 || customers.length > 0) {
+                        setShowCustomerDropdown(true)
+                      }
+                    }}
+                    placeholder="Tìm kiếm khách hàng (tên, số điện thoại, email)..."
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  {selectedCustomerDisplay && (
+                    <button
+                      type="button"
+                      onClick={clearCustomerSelection}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {/* Customer Dropdown */}
+                  {showCustomerDropdown && (
+                    <div 
+                      ref={customerDropdownRef}
+                      className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                    >
+                      {filteredCustomers.length > 0 ? (
+                        <>
+                          {filteredCustomers.map(customer => (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              onClick={() => handleCustomerSelect(customer)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                                  <User className="w-5 h-5 text-primary-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 truncate">{customer.name}</div>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                    {customer.phone && (
+                                      <div className="flex items-center gap-1">
+                                        <Phone className="w-3 h-3" />
+                                        <span>{customer.phone}</span>
+                                      </div>
+                                    )}
+                                    {customer.email && (
+                                      <div className="flex items-center gap-1">
+                                        <Mail className="w-3 h-3" />
+                                        <span className="truncate">{customer.email}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                          <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCustomerModal(true)
+                                setShowCustomerDropdown(false)
+                              }}
+                              className="w-full flex items-center justify-center gap-2 text-primary-600 hover:text-primary-700 font-medium text-sm py-2"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Tạo khách hàng mới
+                            </button>
+                          </div>
+                        </>
+                      ) : customerSearchQuery.trim().length > 0 ? (
+                        <div className="px-4 py-6 text-center">
+                          <p className="text-sm text-gray-500 mb-3">Không tìm thấy khách hàng</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCustomerModal(true)
+                              setShowCustomerDropdown(false)
+                            }}
+                            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Tạo khách hàng mới
+                          </button>
+                        </div>
+                      ) : customers.length === 0 ? (
+                        <div className="px-4 py-6 text-center">
+                          <p className="text-sm text-gray-500 mb-3">Chưa có khách hàng nào</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCustomerModal(true)
+                              setShowCustomerDropdown(false)
+                            }}
+                            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Tạo khách hàng mới
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowCustomerModal(true)}
+                  onClick={() => {
+                    setShowCustomerModal(true)
+                    setShowCustomerDropdown(false)
+                  }}
+                  title="Tạo khách hàng mới"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
+              {formData.customer_id && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Đã chọn khách hàng. Nhấn X để bỏ chọn.
+                </p>
+              )}
             </div>
 
             <div>

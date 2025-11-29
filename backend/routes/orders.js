@@ -7,11 +7,32 @@ const router = express.Router();
 // Get all orders
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { status, page = 1, limit = 10, start_date, end_date } = req.query;
+    const { 
+      status, 
+      delivery_status,
+      page = 1, 
+      limit = 10, 
+      start_date, 
+      end_date,
+      search,
+      return_code,
+      reconciliation_code,
+      tracking_number
+    } = req.query;
+    
     let query = `
-      SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone
+      SELECT 
+        o.*, 
+        c.name as customer_name, 
+        c.email as customer_email, 
+        c.phone as customer_phone,
+        c.address as customer_address,
+        u_seller.full_name as seller_name,
+        u_creator.full_name as creator_name
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN users u_seller ON o.seller_id = u_seller.id
+      LEFT JOIN users u_creator ON o.created_by = u_creator.id
       WHERE 1=1
     `;
     const params = [];
@@ -21,6 +42,12 @@ router.get('/', authenticate, async (req, res) => {
       paramCount++;
       query += ` AND o.status = $${paramCount}`;
       params.push(status);
+    }
+
+    if (delivery_status) {
+      paramCount++;
+      query += ` AND o.delivery_status = $${paramCount}`;
+      params.push(delivery_status);
     }
 
     if (start_date) {
@@ -33,6 +60,38 @@ router.get('/', authenticate, async (req, res) => {
       paramCount++;
       query += ` AND DATE(o.created_at) <= $${paramCount}`;
       params.push(end_date);
+    }
+
+    if (search) {
+      paramCount++;
+      query += ` AND (
+        o.order_number ILIKE $${paramCount} OR
+        o.tracking_number ILIKE $${paramCount} OR
+        o.return_code ILIKE $${paramCount} OR
+        o.reconciliation_code ILIKE $${paramCount} OR
+        c.name ILIKE $${paramCount} OR
+        c.email ILIKE $${paramCount} OR
+        c.phone ILIKE $${paramCount}
+      )`;
+      params.push(`%${search}%`);
+    }
+
+    if (return_code) {
+      paramCount++;
+      query += ` AND o.return_code = $${paramCount}`;
+      params.push(return_code);
+    }
+
+    if (reconciliation_code) {
+      paramCount++;
+      query += ` AND o.reconciliation_code = $${paramCount}`;
+      params.push(reconciliation_code);
+    }
+
+    if (tracking_number) {
+      paramCount++;
+      query += ` AND o.tracking_number ILIKE $${paramCount}`;
+      params.push(`%${tracking_number}%`);
     }
 
     query += ` ORDER BY o.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
@@ -53,7 +112,12 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     // Count total with same filters
-    let countQuery = 'SELECT COUNT(*) FROM orders o WHERE 1=1';
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE 1=1
+    `;
     const countParams = [];
     let countParamCount = 0;
 
@@ -61,6 +125,12 @@ router.get('/', authenticate, async (req, res) => {
       countParamCount++;
       countQuery += ` AND o.status = $${countParamCount}`;
       countParams.push(status);
+    }
+
+    if (delivery_status) {
+      countParamCount++;
+      countQuery += ` AND o.delivery_status = $${countParamCount}`;
+      countParams.push(delivery_status);
     }
 
     if (start_date) {
@@ -73,6 +143,38 @@ router.get('/', authenticate, async (req, res) => {
       countParamCount++;
       countQuery += ` AND DATE(o.created_at) <= $${countParamCount}`;
       countParams.push(end_date);
+    }
+
+    if (search) {
+      countParamCount++;
+      countQuery += ` AND (
+        o.order_number ILIKE $${countParamCount} OR
+        o.tracking_number ILIKE $${countParamCount} OR
+        o.return_code ILIKE $${countParamCount} OR
+        o.reconciliation_code ILIKE $${countParamCount} OR
+        c.name ILIKE $${countParamCount} OR
+        c.email ILIKE $${countParamCount} OR
+        c.phone ILIKE $${countParamCount}
+      )`;
+      countParams.push(`%${search}%`);
+    }
+
+    if (return_code) {
+      countParamCount++;
+      countQuery += ` AND o.return_code = $${countParamCount}`;
+      countParams.push(return_code);
+    }
+
+    if (reconciliation_code) {
+      countParamCount++;
+      countQuery += ` AND o.reconciliation_code = $${countParamCount}`;
+      countParams.push(reconciliation_code);
+    }
+
+    if (tracking_number) {
+      countParamCount++;
+      countQuery += ` AND o.tracking_number ILIKE $${countParamCount}`;
+      countParams.push(`%${tracking_number}%`);
     }
 
     const countResult = await db.pool.query(countQuery, countParams);
@@ -93,9 +195,20 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const orderResult = await db.pool.query(
-      `SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone, c.address as customer_address
+      `SELECT 
+        o.*, 
+        c.name as customer_name, 
+        c.email as customer_email, 
+        c.phone as customer_phone, 
+        c.address as customer_address,
+        u_seller.full_name as seller_name,
+        u_seller.username as seller_username,
+        u_creator.full_name as creator_name,
+        u_creator.username as creator_username
        FROM orders o
        LEFT JOIN customers c ON o.customer_id = c.id
+       LEFT JOIN users u_seller ON o.seller_id = u_seller.id
+       LEFT JOIN users u_creator ON o.created_by = u_creator.id
        WHERE o.id = $1`,
       [req.params.id]
     );

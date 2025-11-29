@@ -51,6 +51,10 @@ const AddressAutocomplete = ({
   useEffect(() => {
     if (selectedProvince) {
       fetchDistricts(selectedProvince)
+      // Tự động mở dropdowns khi chọn tỉnh/thành phố
+      if (!showDropdowns) {
+        setShowDropdowns(true)
+      }
     } else {
       setDistricts([])
       setWards([])
@@ -60,6 +64,10 @@ const AddressAutocomplete = ({
   useEffect(() => {
     if (selectedDistrict) {
       fetchWards(selectedDistrict)
+      // Tự động mở dropdowns khi chọn quận/huyện
+      if (!showDropdowns) {
+        setShowDropdowns(true)
+      }
     } else {
       setWards([])
     }
@@ -527,19 +535,38 @@ const AddressAutocomplete = ({
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Tỉnh/Thành phố {required && <span className="text-red-500">*</span>}
             </label>
-            <select
-              value={selectedProvince}
-              onChange={(e) => setSelectedProvince(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              disabled={loadingProvinces}
-            >
-              <option value="">Chọn tỉnh/thành phố</option>
-              {provinces.map(province => (
-                <option key={province.code} value={province.code}>
-                  {province.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedProvince}
+                onChange={(e) => {
+                  setSelectedProvince(e.target.value)
+                  // Tự động mở dropdowns để hiển thị quận/huyện
+                  if (e.target.value && !showDropdowns) {
+                    setShowDropdowns(true)
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                disabled={loadingProvinces}
+              >
+                <option value="">Chọn tỉnh/thành phố</option>
+                {provinces.map(province => (
+                  <option key={province.code} value={province.code}>
+                    {province.name}
+                  </option>
+                ))}
+              </select>
+              {loadingDistricts && selectedProvince && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            {/* Hiển thị gợi ý quận/huyện khi đã chọn tỉnh/thành phố */}
+            {selectedProvince && districts.length > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                <span className="font-medium">Gợi ý:</span> Đã tìm thấy {districts.length} quận/huyện. Vui lòng chọn quận/huyện bên dưới.
+              </div>
+            )}
           </div>
 
           {/* District */}
@@ -547,19 +574,40 @@ const AddressAutocomplete = ({
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Quận/Huyện
             </label>
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              disabled={!selectedProvince || loadingDistricts}
-            >
-              <option value="">Chọn quận/huyện</option>
-              {districts.map(district => (
-                <option key={district.code} value={district.code}>
-                  {district.name}
+            <div className="relative">
+              <select
+                value={selectedDistrict}
+                onChange={(e) => {
+                  setSelectedDistrict(e.target.value)
+                  // Tự động mở dropdowns để hiển thị phường/xã
+                  if (e.target.value && !showDropdowns) {
+                    setShowDropdowns(true)
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                disabled={!selectedProvince || loadingDistricts}
+              >
+                <option value="">
+                  {loadingDistricts ? 'Đang tải...' : selectedProvince ? 'Chọn quận/huyện' : 'Chọn tỉnh/thành phố trước'}
                 </option>
-              ))}
-            </select>
+                {districts.map(district => (
+                  <option key={district.code} value={district.code}>
+                    {district.name}
+                  </option>
+                ))}
+              </select>
+              {loadingWards && selectedDistrict && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            {/* Hiển thị gợi ý phường/xã khi đã chọn quận/huyện */}
+            {selectedDistrict && wards.length > 0 && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                <span className="font-medium">Gợi ý:</span> Đã tìm thấy {wards.length} phường/xã. Vui lòng chọn phường/xã bên dưới.
+              </div>
+            )}
           </div>
 
           {/* Ward */}
@@ -573,7 +621,9 @@ const AddressAutocomplete = ({
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               disabled={!selectedDistrict || loadingWards}
             >
-              <option value="">Chọn phường/xã</option>
+              <option value="">
+                {loadingWards ? 'Đang tải...' : selectedDistrict ? 'Chọn phường/xã' : 'Chọn quận/huyện trước'}
+              </option>
               {wards.map(ward => (
                 <option key={ward.code} value={ward.code}>
                   {ward.name}

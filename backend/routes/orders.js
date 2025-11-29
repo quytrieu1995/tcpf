@@ -23,16 +23,24 @@ router.get('/', authenticate, async (req, res) => {
     let query = `
       SELECT 
         o.*, 
-        c.name as customer_name, 
+        c.name as customer_name,
+        c.code as customer_code,
         c.email as customer_email, 
         c.phone as customer_phone,
         c.address as customer_address,
         u_seller.full_name as seller_name,
-        u_creator.full_name as creator_name
+        u_creator.full_name as creator_name,
+        b.code as branch_code,
+        b.name as branch_name,
+        sm.name as shipping_method_name,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
       LEFT JOIN users u_seller ON o.seller_id = u_seller.id
       LEFT JOIN users u_creator ON o.created_by = u_creator.id
+      LEFT JOIN branches b ON o.branch_id = b.id
+      LEFT JOIN shipping_methods sm ON o.shipping_method_id = sm.id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE 1=1
     `;
     const params = [];
@@ -94,7 +102,7 @@ router.get('/', authenticate, async (req, res) => {
       params.push(`%${tracking_number}%`);
     }
 
-    query += ` ORDER BY o.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    query += ` GROUP BY o.id, c.id, c.name, c.code, c.email, c.phone, c.address, u_seller.id, u_seller.full_name, u_creator.id, u_creator.full_name, b.id, b.code, b.name, sm.id, sm.name ORDER BY o.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
 
     const result = await db.pool.query(query, params);
@@ -113,9 +121,13 @@ router.get('/', authenticate, async (req, res) => {
 
     // Count total with same filters
     let countQuery = `
-      SELECT COUNT(*) 
+      SELECT COUNT(DISTINCT o.id) 
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN users u_seller ON o.seller_id = u_seller.id
+      LEFT JOIN users u_creator ON o.created_by = u_creator.id
+      LEFT JOIN branches b ON o.branch_id = b.id
+      LEFT JOIN shipping_methods sm ON o.shipping_method_id = sm.id
       WHERE 1=1
     `;
     const countParams = [];

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
-import { Eye, Download, Filter, X, Edit, Save } from 'lucide-react'
+import { Eye, Download, Filter, X, Edit, Save, ShoppingCart, Truck, CheckCircle, Clock } from 'lucide-react'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -279,90 +279,151 @@ const Orders = () => {
     )
   }
 
+  const getSalesChannelBadge = (channel) => {
+    if (!channel) return null
+    const channelConfig = {
+      'shopee': { icon: ShoppingCart, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Shopee' },
+      'tiktok': { icon: ShoppingCart, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'TikTok' },
+      'lazada': { icon: ShoppingCart, color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Lazada' },
+      'tiki': { icon: ShoppingCart, color: 'bg-red-100 text-red-800 border-red-200', label: 'Tiki' },
+      'offline': { icon: ShoppingCart, color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Offline' }
+    }
+    const config = channelConfig[channel.toLowerCase()] || { icon: ShoppingCart, color: 'bg-gray-100 text-gray-800 border-gray-200', label: channel }
+    const Icon = config.icon
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+        <Icon className="w-3 h-3" />
+        {config.label}
+      </span>
+    )
+  }
+
+  const getShippingPartnerBadge = (partner) => {
+    if (!partner) return null
+    const partnerConfig = {
+      'ghn': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'GHN' },
+      'viettel post': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'Viettel Post' },
+      'ghtk': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'GHTK' },
+      'j&t': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'J&T' }
+    }
+    const config = partnerConfig[partner.toLowerCase()] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: partner }
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+        <Truck className="w-3 h-3" />
+        {config.label}
+      </span>
+    )
+  }
+
+  const getDeliveryStatusBadge = (status) => {
+    const statusConfig = {
+      'delivered': { icon: CheckCircle, color: 'bg-green-100 text-green-800 border-green-200', label: 'Đã giao' },
+      'shipping': { icon: Truck, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Đang giao' },
+      'pending': { icon: Clock, color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Đang xử lý' },
+      'returned': { icon: X, color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Đã trả' },
+      'cancelled': { icon: X, color: 'bg-red-100 text-red-800 border-red-200', label: 'Đã hủy' }
+    }
+    const config = statusConfig[status] || statusConfig['pending']
+    const Icon = config.icon
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+        <Icon className="w-3 h-3" />
+        {config.label}
+      </span>
+    )
+  }
+
   const columns = [
     {
-      key: 'order_number',
-      header: 'Mã đơn hàng',
+      key: 'tracking_number',
+      header: 'MÃ VẬN ĐƠN',
       sortable: true,
       render: (row) => (
-        <span className="font-semibold text-primary-600">{row.order_number}</span>
+        <span className="font-semibold text-primary-600">{row.tracking_number || row.order_number || '-'}</span>
       )
     },
     {
       key: 'customer_name',
-      header: 'Khách hàng',
+      header: 'KHÁCH HÀNG',
       sortable: true,
       render: (row) => (
         <div>
           <div className="font-medium text-gray-900">{row.customer_name || 'Khách vãng lai'}</div>
-          {row.customer_email && (
-            <div className="text-xs text-gray-500">{row.customer_email}</div>
+          {row.customer_code && (
+            <div className="text-xs text-gray-500">{row.customer_code}</div>
           )}
         </div>
+      )
+    },
+    {
+      key: 'customer_phone',
+      header: 'ĐIỆN THOẠI',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm text-gray-600">{row.customer_phone || '-'}</span>
+      )
+    },
+    {
+      key: 'branch',
+      header: 'CHI NHÁNH',
+      sortable: true,
+      render: (row) => (
+        <div className="text-sm text-gray-600">
+          {row.branch_code && row.branch_name ? (
+            <span>{row.branch_code} - {row.branch_name}</span>
+          ) : row.branch_name ? (
+            <span>{row.branch_name}</span>
+          ) : (
+            <span>-</span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'sales_channel',
+      header: 'KÊNH BÁN',
+      sortable: true,
+      render: (row) => getSalesChannelBadge(row.sales_channel)
+    },
+    {
+      key: 'shipping_method',
+      header: 'ĐỐI TÁC GH',
+      sortable: true,
+      render: (row) => getShippingPartnerBadge(row.shipping_method_name)
+    },
+    {
+      key: 'created_at',
+      header: 'NGÀY TẠO',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm text-gray-600">
+          {format(new Date(row.created_at), 'yyyy-MM-dd')}
+        </span>
+      )
+    },
+    {
+      key: 'total_quantity',
+      header: 'SỐ LƯỢNG SP',
+      sortable: true,
+      render: (row) => (
+        <span className="text-sm font-medium text-gray-900">
+          {row.total_quantity || 0} SP
+        </span>
       )
     },
     {
       key: 'total_amount',
-      header: 'Tổng tiền',
+      header: 'TỔNG TIỀN',
       sortable: true,
       render: (row) => (
-        <div>
-          <div className="font-semibold text-gray-900">{formatCurrency(row.total_amount)}</div>
-          {row.discount_amount > 0 && (
-            <div className="text-xs text-green-600">Giảm: {formatCurrency(row.discount_amount)}</div>
-          )}
-        </div>
+        <div className="font-semibold text-gray-900">{formatCurrency(row.total_amount)}</div>
       )
     },
     {
-      key: 'payment_method',
-      header: 'Thanh toán',
-      render: (row) => {
-        const methods = {
-          cash: 'Tiền mặt',
-          bank_transfer: 'Chuyển khoản',
-          credit: 'Trả chậm',
-          card: 'Thẻ'
-        }
-        return (
-          <span className="text-sm text-gray-600">
-            {methods[row.payment_method] || row.payment_method || '-'}
-          </span>
-        )
-      }
-    },
-    {
-      key: 'status',
-      header: 'Trạng thái',
+      key: 'delivery_status',
+      header: 'TRẠNG THÁI',
       sortable: true,
-      render: (row) => (
-        <select
-          value={row.status}
-          onChange={(e) => handleStatusChange(row.id, e.target.value)}
-          className={`text-xs font-semibold rounded-full px-3 py-1 border-0 cursor-pointer ${
-            row.status === 'completed' ? 'bg-green-100 text-green-800' :
-            row.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-            row.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-            'bg-yellow-100 text-yellow-800'
-          }`}
-        >
-          <option value="pending">Chờ xử lý</option>
-          <option value="processing">Đang xử lý</option>
-          <option value="completed">Hoàn thành</option>
-          <option value="cancelled">Đã hủy</option>
-        </select>
-      )
-    },
-    {
-      key: 'created_at',
-      header: 'Ngày tạo',
-      sortable: true,
-      render: (row) => (
-        <div className="text-sm text-gray-600">
-          <div>{format(new Date(row.created_at), 'dd/MM/yyyy')}</div>
-          <div className="text-xs text-gray-400">{format(new Date(row.created_at), 'HH:mm')}</div>
-        </div>
-      )
+      render: (row) => getDeliveryStatusBadge(row.delivery_status || row.status)
     },
     {
       key: 'actions',

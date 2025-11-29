@@ -68,6 +68,7 @@ const init = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(100),
         phone VARCHAR(20),
@@ -98,6 +99,20 @@ const init = async () => {
         quantity INTEGER NOT NULL,
         price DECIMAL(10, 2) NOT NULL,
         subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `)
+
+    // Branches table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS branches (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        address TEXT,
+        phone VARCHAR(20),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -321,6 +336,11 @@ const init = async () => {
     `);
 
     // Update customers table
+    await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS code VARCHAR(50) UNIQUE
+    `);
+    
     await pool.query(`
       ALTER TABLE customers 
       ADD COLUMN IF NOT EXISTS group_id INTEGER REFERENCES customer_groups(id) ON DELETE SET NULL,

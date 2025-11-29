@@ -307,6 +307,12 @@ const Customers = () => {
             <AddressAutocomplete
               value={formData.address}
               onChange={(address) => setFormData({ ...formData, address })}
+              onAddressChange={(addressData) => {
+                setFormData({ 
+                  ...formData, 
+                  address: addressData.fullAddress
+                })
+              }}
               placeholder="Nhập địa chỉ khách hàng"
             />
           </div>

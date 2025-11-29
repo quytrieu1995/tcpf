@@ -549,10 +549,16 @@ const CreateOrder = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Địa chỉ
             </label>
-            <Input
-              type="text"
+            <AddressAutocomplete
               value={customerForm.address}
-              onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+              onChange={(address) => setCustomerForm({ ...customerForm, address })}
+              onAddressChange={(addressData) => {
+                setCustomerForm({ 
+                  ...customerForm, 
+                  address: addressData.fullAddress
+                })
+              }}
+              placeholder="Nhập địa chỉ khách hàng"
             />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">

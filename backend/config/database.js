@@ -233,7 +233,26 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS promotion_id INTEGER REFERENCES promotions(id) ON DELETE SET NULL,
       ADD COLUMN IF NOT EXISTS shipping_address TEXT,
       ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(20),
-      ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100)
+      ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS return_code VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS reconciliation_code VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT 'pending',
+      ADD COLUMN IF NOT EXISTS area VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS ward VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS branch_id INTEGER,
+      ADD COLUMN IF NOT EXISTS seller_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS sales_channel VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS total_after_tax DECIMAL(10, 2),
+      ADD COLUMN IF NOT EXISTS vat DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS tax_reduction DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS other_income DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS customer_paid DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS payment_discount DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS cod_amount DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS return_fee DECIMAL(10, 2) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS delivery_status_notes TEXT,
+      ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP
     `);
 
     // Inventory transactions (stock movements)

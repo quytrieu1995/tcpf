@@ -317,6 +317,254 @@ router.post('/', authenticate, [
   }
 });
 
+// Update order (full update)
+router.put('/:id', authenticate, [
+  body('customer_id').optional().custom((value) => {
+    if (value === '' || value === null || value === undefined) return true;
+    return !isNaN(parseInt(value));
+  }),
+  body('shipping_method_id').optional().custom((value) => {
+    if (value === '' || value === null || value === undefined) return true;
+    return !isNaN(parseInt(value));
+  }),
+  body('status').optional().isIn(['pending', 'processing', 'completed', 'cancelled']),
+  body('delivery_status').optional().isIn(['pending', 'shipping', 'delivered', 'returned', 'cancelled'])
+], async (req, res) => {
+  try {
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const {
+      customer_id,
+      shipping_method_id,
+      payment_method,
+      status,
+      notes,
+      shipping_address,
+      shipping_phone,
+      tracking_number,
+      return_code,
+      reconciliation_code,
+      delivery_status,
+      area,
+      ward,
+      branch_id,
+      seller_id,
+      sales_channel,
+      total_amount,
+      total_after_tax,
+      discount_amount,
+      vat,
+      tax_reduction,
+      other_income,
+      customer_paid,
+      payment_discount,
+      cod_amount,
+      return_fee,
+      delivery_status_notes,
+      delivered_at
+    } = req.body;
+
+    // Normalize integer fields
+    const normalizedCustomerId = (customer_id && customer_id !== '') ? parseInt(customer_id) : null;
+    const normalizedShippingMethodId = (shipping_method_id && shipping_method_id !== '') ? parseInt(shipping_method_id) : null;
+    const normalizedBranchId = (branch_id && branch_id !== '') ? parseInt(branch_id) : null;
+    const normalizedSellerId = (seller_id && seller_id !== '') ? parseInt(seller_id) : null;
+
+    // Build dynamic update query
+    const updateFields = [];
+    const params = [];
+    let paramCount = 0;
+
+    if (normalizedCustomerId !== undefined) {
+      paramCount++;
+      updateFields.push(`customer_id = $${paramCount}`);
+      params.push(normalizedCustomerId);
+    }
+    if (normalizedShippingMethodId !== undefined) {
+      paramCount++;
+      updateFields.push(`shipping_method_id = $${paramCount}`);
+      params.push(normalizedShippingMethodId);
+    }
+    if (payment_method !== undefined) {
+      paramCount++;
+      updateFields.push(`payment_method = $${paramCount}`);
+      params.push(payment_method);
+    }
+    if (status !== undefined) {
+      paramCount++;
+      updateFields.push(`status = $${paramCount}`);
+      params.push(status);
+    }
+    if (notes !== undefined) {
+      paramCount++;
+      updateFields.push(`notes = $${paramCount}`);
+      params.push(notes);
+    }
+    if (shipping_address !== undefined) {
+      paramCount++;
+      updateFields.push(`shipping_address = $${paramCount}`);
+      params.push(shipping_address);
+    }
+    if (shipping_phone !== undefined) {
+      paramCount++;
+      updateFields.push(`shipping_phone = $${paramCount}`);
+      params.push(shipping_phone);
+    }
+    if (tracking_number !== undefined) {
+      paramCount++;
+      updateFields.push(`tracking_number = $${paramCount}`);
+      params.push(tracking_number);
+    }
+    if (return_code !== undefined) {
+      paramCount++;
+      updateFields.push(`return_code = $${paramCount}`);
+      params.push(return_code);
+    }
+    if (reconciliation_code !== undefined) {
+      paramCount++;
+      updateFields.push(`reconciliation_code = $${paramCount}`);
+      params.push(reconciliation_code);
+    }
+    if (delivery_status !== undefined) {
+      paramCount++;
+      updateFields.push(`delivery_status = $${paramCount}`);
+      params.push(delivery_status);
+    }
+    if (area !== undefined) {
+      paramCount++;
+      updateFields.push(`area = $${paramCount}`);
+      params.push(area);
+    }
+    if (ward !== undefined) {
+      paramCount++;
+      updateFields.push(`ward = $${paramCount}`);
+      params.push(ward);
+    }
+    if (normalizedBranchId !== undefined) {
+      paramCount++;
+      updateFields.push(`branch_id = $${paramCount}`);
+      params.push(normalizedBranchId);
+    }
+    if (normalizedSellerId !== undefined) {
+      paramCount++;
+      updateFields.push(`seller_id = $${paramCount}`);
+      params.push(normalizedSellerId);
+    }
+    if (sales_channel !== undefined) {
+      paramCount++;
+      updateFields.push(`sales_channel = $${paramCount}`);
+      params.push(sales_channel);
+    }
+    if (total_amount !== undefined) {
+      paramCount++;
+      updateFields.push(`total_amount = $${paramCount}`);
+      params.push(parseFloat(total_amount));
+    }
+    if (total_after_tax !== undefined) {
+      paramCount++;
+      updateFields.push(`total_after_tax = $${paramCount}`);
+      params.push(parseFloat(total_after_tax));
+    }
+    if (discount_amount !== undefined) {
+      paramCount++;
+      updateFields.push(`discount_amount = $${paramCount}`);
+      params.push(parseFloat(discount_amount));
+    }
+    if (vat !== undefined) {
+      paramCount++;
+      updateFields.push(`vat = $${paramCount}`);
+      params.push(parseFloat(vat));
+    }
+    if (tax_reduction !== undefined) {
+      paramCount++;
+      updateFields.push(`tax_reduction = $${paramCount}`);
+      params.push(parseFloat(tax_reduction));
+    }
+    if (other_income !== undefined) {
+      paramCount++;
+      updateFields.push(`other_income = $${paramCount}`);
+      params.push(parseFloat(other_income));
+    }
+    if (customer_paid !== undefined) {
+      paramCount++;
+      updateFields.push(`customer_paid = $${paramCount}`);
+      params.push(parseFloat(customer_paid));
+    }
+    if (payment_discount !== undefined) {
+      paramCount++;
+      updateFields.push(`payment_discount = $${paramCount}`);
+      params.push(parseFloat(payment_discount));
+    }
+    if (cod_amount !== undefined) {
+      paramCount++;
+      updateFields.push(`cod_amount = $${paramCount}`);
+      params.push(parseFloat(cod_amount));
+    }
+    if (return_fee !== undefined) {
+      paramCount++;
+      updateFields.push(`return_fee = $${paramCount}`);
+      params.push(parseFloat(return_fee));
+    }
+    if (delivery_status_notes !== undefined) {
+      paramCount++;
+      updateFields.push(`delivery_status_notes = $${paramCount}`);
+      params.push(delivery_status_notes);
+    }
+    if (delivered_at !== undefined) {
+      paramCount++;
+      updateFields.push(`delivered_at = $${paramCount}`);
+      params.push(delivered_at ? new Date(delivered_at) : null);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // Always update updated_at
+    paramCount++;
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    // Add WHERE clause
+    paramCount++;
+    params.push(parseInt(req.params.id));
+
+    const query = `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+    
+    const result = await db.pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Fetch complete order with customer info
+    const completeOrder = await db.pool.query(
+      `SELECT o.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone 
+       FROM orders o 
+       LEFT JOIN customers c ON o.customer_id = c.id 
+       WHERE o.id = $1`,
+      [req.params.id]
+    );
+
+    res.json(completeOrder.rows[0]);
+  } catch (error) {
+    console.error('❌ Update order error:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ 
+      message: error.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Update order status
 router.patch('/:id/status', authenticate, [
   body('status').isIn(['pending', 'processing', 'completed', 'cancelled']).withMessage('Invalid status')

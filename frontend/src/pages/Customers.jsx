@@ -8,6 +8,7 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import { SkeletonTable } from '../components/Skeleton'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const Customers = () => {
   const toast = useToast()
@@ -303,11 +304,10 @@ const Customers = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Địa chỉ</label>
-            <textarea
+            <AddressAutocomplete
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              rows="3"
+              onChange={(address) => setFormData({ ...formData, address })}
+              placeholder="Nhập địa chỉ khách hàng"
             />
           </div>
 

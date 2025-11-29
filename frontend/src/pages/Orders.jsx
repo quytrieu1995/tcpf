@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
 import { Eye, Download, Filter, X, Edit, Save } from 'lucide-react'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
 import { useToast } from '../components/ToastContainer'
@@ -917,10 +918,18 @@ const Orders = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Địa chỉ giao hàng
               </label>
-              <Input
-                type="text"
+              <AddressAutocomplete
                 value={editFormData.shipping_address || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, shipping_address: e.target.value })}
+                onChange={(address) => setEditFormData({ ...editFormData, shipping_address: address })}
+                onAddressChange={(addressData) => {
+                  setEditFormData({ 
+                    ...editFormData, 
+                    shipping_address: addressData.fullAddress,
+                    area: addressData.district,
+                    ward: addressData.ward
+                  })
+                }}
+                placeholder="Nhập địa chỉ giao hàng"
               />
             </div>
             <div>

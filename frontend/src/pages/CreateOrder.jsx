@@ -6,6 +6,7 @@ import { useToast } from '../components/ToastContainer'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import Modal from '../components/Modal'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const CreateOrder = () => {
   const toast = useToast()
@@ -436,10 +437,18 @@ const CreateOrder = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Địa chỉ giao hàng
                   </label>
-                  <Input
-                    type="text"
+                  <AddressAutocomplete
                     value={formData.shipping_address}
-                    onChange={(e) => setFormData({ ...formData, shipping_address: e.target.value })}
+                    onChange={(address) => setFormData({ ...formData, shipping_address: address })}
+                    onAddressChange={(addressData) => {
+                      setFormData({ 
+                        ...formData, 
+                        shipping_address: addressData.fullAddress,
+                        area: addressData.district,
+                        ward: addressData.ward
+                      })
+                    }}
+                    placeholder="Nhập địa chỉ giao hàng"
                   />
                 </div>
                 <div>

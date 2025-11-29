@@ -60,9 +60,11 @@ const CreateOrder = () => {
   const fetchCustomers = async () => {
     try {
       const response = await api.get('/customers?limit=1000')
-      // Ensure response.data is an array
+      // Handle both response formats: array or object with customers property
       if (Array.isArray(response.data)) {
         setCustomers(response.data)
+      } else if (response.data?.customers && Array.isArray(response.data.customers)) {
+        setCustomers(response.data.customers)
       } else {
         setCustomers([])
         console.warn('Customers response is not an array:', response.data)
@@ -126,16 +128,54 @@ const CreateOrder = () => {
   }
 
   const createCustomer = async () => {
+    // Validate required fields
+    if (!customerForm.name || customerForm.name.trim() === '') {
+      toast.error('Vui lòng nhập tên khách hàng')
+      return
+    }
+
     try {
-      const response = await api.post('/customers', customerForm)
+      const response = await api.post('/customers', {
+        name: customerForm.name.trim(),
+        email: customerForm.email?.trim() || null,
+        phone: customerForm.phone?.trim() || null,
+        address: customerForm.address?.trim() || null
+      })
+      
       toast.success('Tạo khách hàng thành công!')
       setShowCustomerModal(false)
       setCustomerForm({ name: '', email: '', phone: '', address: '' })
-      fetchCustomers()
-      setFormData({ ...formData, customer_id: response.data.id })
+      
+      // Refresh customers list
+      await fetchCustomers()
+      
+      // Set the newly created customer as selected
+      if (response.data?.id) {
+        setFormData({ ...formData, customer_id: response.data.id.toString() })
+      }
     } catch (error) {
       console.error('Error creating customer:', error)
-      toast.error('Có lỗi xảy ra khi tạo khách hàng')
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // Show specific error messages
+      if (error.response?.status === 400) {
+        const errors = error.response.data?.errors || []
+        if (errors.length > 0) {
+          toast.error(errors[0].msg || 'Dữ liệu không hợp lệ')
+        } else {
+          toast.error(error.response.data?.message || 'Dữ liệu không hợp lệ')
+        }
+      } else if (error.response?.status === 500) {
+        toast.error('Lỗi server. Vui lòng thử lại sau.')
+      } else if (!error.response) {
+        toast.error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối.')
+      } else {
+        toast.error(error.response.data?.message || 'Có lỗi xảy ra khi tạo khách hàng')
+      }
     }
   }
 

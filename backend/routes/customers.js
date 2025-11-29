@@ -71,7 +71,9 @@ router.get('/:id/orders', authenticate, async (req, res) => {
 
 // Create customer
 router.post('/', authenticate, [
-  body('name').notEmpty().withMessage('Name is required')
+  body('name').notEmpty().trim().withMessage('Name is required'),
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('phone').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -79,16 +81,75 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const { name, email, phone, address, group_id, credit_limit, tags } = req.body;
+    
+    // Check if customer with same email or phone already exists (if provided)
+    if (email || phone) {
+      let checkQuery = 'SELECT id FROM customers WHERE ';
+      const checkParams = [];
+      const conditions = [];
+      
+      if (email) {
+        checkParams.push(email);
+        conditions.push(`email = $${checkParams.length}`);
+      }
+      if (phone) {
+        checkParams.push(phone);
+        conditions.push(`phone = $${checkParams.length}`);
+      }
+      
+      if (conditions.length > 0) {
+        checkQuery += conditions.join(' OR ');
+        const existing = await db.pool.query(checkQuery, checkParams);
+        if (existing.rows.length > 0) {
+          return res.status(400).json({ 
+            message: 'Khách hàng với email hoặc số điện thoại này đã tồn tại' 
+          });
+        }
+      }
+    }
+
     const result = await db.pool.query(
       'INSERT INTO customers (name, email, phone, address, group_id, credit_limit, tags) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [name, email, phone, address, group_id, credit_limit || 0, tags || []]
+      [
+        name.trim(), 
+        email?.trim() || null, 
+        phone?.trim() || null, 
+        address?.trim() || null, 
+        group_id || null, 
+        credit_limit || 0, 
+        tags ? (Array.isArray(tags) ? tags : JSON.parse(tags)) : []
+      ]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create customer error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
+    
+    // Handle specific database errors
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ message: 'Email hoặc số điện thoại đã tồn tại' });
+    }
+    
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

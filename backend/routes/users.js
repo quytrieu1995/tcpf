@@ -139,6 +139,10 @@ router.put('/:id', authenticate, [
     }
 
     if (password) {
+      // Validate password length
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
       const hashedPassword = await bcrypt.hash(password, 10);
       paramCount++;
       query += `${paramCount > 1 ? ',' : ''} password = $${paramCount}`;

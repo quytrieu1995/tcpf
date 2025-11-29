@@ -87,15 +87,16 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handling middleware (must be last)
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  console.error('Error stack:', err.stack);
-  console.error('Request:', {
+  console.error('❌ Unhandled error:', err.message);
+  console.error('❌ Error stack:', err.stack);
+  console.error('❌ Request details:', {
     method: req.method,
     path: req.path,
     body: req.body,
-    query: req.query
+    query: req.query,
+    params: req.params
   });
   
   // Don't send error details in production
@@ -103,21 +104,34 @@ app.use((err, req, res, next) => {
     ? err.message 
     : 'Internal server error';
     
-  res.status(err.status || 500).json({ 
-    message: 'Something went wrong!', 
-    error: errorMessage 
-  });
+  // Ensure response is sent
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({ 
+      message: 'Something went wrong!', 
+      error: errorMessage 
+    });
+  }
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('❌ Reason:', reason);
+  console.error('❌ Stack:', reason?.stack);
+  // Don't exit, log and continue
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
+  console.error('❌ Uncaught Exception:', error);
+  console.error('❌ Stack:', error.stack);
+  // Log but don't exit immediately to prevent 502
+  // In production, you might want to restart gracefully
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  Server will continue running but may be unstable');
+  } else {
+    process.exit(1);
+  }
 });
 
 const PORT = process.env.PORT || 5000;
@@ -126,12 +140,24 @@ const PORT = process.env.PORT || 5000;
 db.init()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ Database connection established`);
+      console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
     });
   })
   .catch(err => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
+    console.error('❌ Failed to initialize database:', err);
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail
+    });
+    // Don't exit immediately, allow server to start but mark as degraded
+    console.warn('⚠️  Starting server in degraded mode (database unavailable)');
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT} (degraded mode)`);
+      console.log('⚠️  Database connection failed - some features may not work');
+    });
   });
 
 module.exports = app;

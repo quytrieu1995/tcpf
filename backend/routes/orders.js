@@ -136,6 +136,12 @@ router.post('/', authenticate, [
   body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
 ], async (req, res) => {
   try {
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -143,6 +149,12 @@ router.post('/', authenticate, [
 
     const { customer_id, items, payment_method, notes, shipping_method_id, shipping_address, shipping_phone, promotion_code } = req.body;
     const user = req.user;
+    
+    // Validate items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'At least one item is required' });
+    }
+
     const client = await db.pool.connect();
 
     try {
@@ -279,8 +291,29 @@ router.post('/', authenticate, [
       client.release();
     }
   } catch (error) {
-    console.error('Create order error:', error);
-    res.status(500).json({ message: error.message || 'Server error' });
+    console.error('❌ Create order error:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint
+    });
+    
+    // Handle specific database errors
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ message: 'Duplicate entry' });
+    }
+    if (error.code === '23503') { // Foreign key violation
+      return res.status(400).json({ message: 'Invalid reference' });
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: error.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

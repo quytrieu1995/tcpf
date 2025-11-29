@@ -211,17 +211,45 @@ const CreateOrder = () => {
         quantity: item.quantity
       }))
 
-      const response = await api.post('/orders', {
-        ...formData,
+      // Normalize data: convert empty strings to null for integer fields
+      const orderData = {
         items,
-        customer_id: formData.customer_id || null
-      })
+        customer_id: formData.customer_id && formData.customer_id !== '' ? parseInt(formData.customer_id) : null,
+        shipping_method_id: formData.shipping_method_id && formData.shipping_method_id !== '' ? parseInt(formData.shipping_method_id) : null,
+        payment_method: formData.payment_method || 'cash',
+        shipping_address: formData.shipping_address || null,
+        shipping_phone: formData.shipping_phone || null,
+        promotion_code: formData.promotion_code || null,
+        notes: formData.notes || null
+      }
+
+      const response = await api.post('/orders', orderData)
 
       toast.success('Tạo đơn hàng thành công!')
       navigate(`/orders`)
     } catch (error) {
       console.error('Error creating order:', error)
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo đơn hàng')
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // Show specific error messages
+      if (error.response?.status === 400) {
+        const errors = error.response.data?.errors || []
+        if (errors.length > 0) {
+          toast.error(errors[0].msg || 'Dữ liệu không hợp lệ')
+        } else {
+          toast.error(error.response.data?.message || 'Dữ liệu không hợp lệ')
+        }
+      } else if (error.response?.status === 500) {
+        toast.error(error.response.data?.message || 'Lỗi server. Vui lòng thử lại sau.')
+      } else if (!error.response) {
+        toast.error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối.')
+      } else {
+        toast.error(error.response.data?.message || 'Có lỗi xảy ra khi tạo đơn hàng')
+      }
     }
   }
 

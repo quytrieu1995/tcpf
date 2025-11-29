@@ -123,7 +123,14 @@ router.get('/:id', authenticate, async (req, res) => {
 
 // Create order
 router.post('/', authenticate, [
-  body('customer_id').optional().isInt(),
+  body('customer_id').optional().custom((value) => {
+    if (value === '' || value === null || value === undefined) return true;
+    return !isNaN(parseInt(value));
+  }).withMessage('Customer ID must be a valid integer'),
+  body('shipping_method_id').optional().custom((value) => {
+    if (value === '' || value === null || value === undefined) return true;
+    return !isNaN(parseInt(value));
+  }).withMessage('Shipping method ID must be a valid integer'),
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
   body('items.*.product_id').isInt().withMessage('Product ID is required'),
   body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
@@ -140,6 +147,10 @@ router.post('/', authenticate, [
 
     try {
       await client.query('BEGIN');
+
+      // Normalize integer fields: convert empty strings to null
+      const normalizedCustomerId = (customer_id && customer_id !== '') ? parseInt(customer_id) : null;
+      const normalizedShippingMethodId = (shipping_method_id && shipping_method_id !== '') ? parseInt(shipping_method_id) : null;
 
       // Generate order number
       const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -159,8 +170,8 @@ router.post('/', authenticate, [
 
       // Get shipping cost
       let shippingCost = 0;
-      if (shipping_method_id) {
-        const shipping = await client.query('SELECT cost FROM shipping_methods WHERE id = $1', [shipping_method_id]);
+      if (normalizedShippingMethodId) {
+        const shipping = await client.query('SELECT cost FROM shipping_methods WHERE id = $1', [normalizedShippingMethodId]);
         if (shipping.rows.length > 0) {
           shippingCost = parseFloat(shipping.rows[0].cost);
         }
@@ -206,50 +217,29 @@ router.post('/', authenticate, [
       // Create order
       const orderResult = await client.query(
         'INSERT INTO orders (customer_id, order_number, total_amount, shipping_method_id, shipping_cost, discount_amount, promotion_id, payment_method, shipping_address, shipping_phone, notes, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-        [customer_id || null, orderNumber, finalAmount, shipping_method_id, shippingCost, discountAmount, promotionId, payment_method, shipping_address, shipping_phone, notes, 'pending']
+        [normalizedCustomerId, orderNumber, finalAmount, normalizedShippingMethodId, shippingCost, discountAmount, promotionId, payment_method || 'cash', shipping_address || null, shipping_phone || null, notes || null, 'pending']
       );
 
       const order = orderResult.rows[0];
 
       // If payment is credit, create debt transaction
-      if (payment_method === 'credit' && customer_id) {
+      if (payment_method === 'credit' && normalizedCustomerId) {
         await client.query(
           `INSERT INTO debt_transactions (type, entity_type, entity_id, order_id, amount, transaction_type, created_by)
            VALUES ('customer', 'customer', $1, $2, $3, 'increase', $4)`,
-          [customer_id, order.id, finalAmount, user.id]
+          [normalizedCustomerId, order.id, finalAmount, user.id]
         );
 
         // Update customer debt
         await client.query(
           'UPDATE customers SET debt_amount = debt_amount + $1, total_purchases = total_purchases + $2, total_orders = total_orders + 1 WHERE id = $3',
-          [finalAmount, finalAmount, customer_id]
+          [finalAmount, finalAmount, normalizedCustomerId]
         );
-      } else if (customer_id) {
+      } else if (normalizedCustomerId) {
         // Update customer stats
         await client.query(
           'UPDATE customers SET total_purchases = total_purchases + $1, total_orders = total_orders + 1 WHERE id = $2',
-          [finalAmount, customer_id]
-        );
-      }
-
-      // If payment is credit, create debt transaction
-      if (payment_method === 'credit' && customer_id) {
-        await client.query(
-          `INSERT INTO debt_transactions (type, entity_type, entity_id, order_id, amount, transaction_type, created_by)
-           VALUES ('customer', 'customer', $1, $2, $3, 'increase', $4)`,
-          [customer_id, order.id, finalAmount, user.id]
-        );
-
-        // Update customer debt
-        await client.query(
-          'UPDATE customers SET debt_amount = debt_amount + $1, total_purchases = total_purchases + $2, total_orders = total_orders + 1 WHERE id = $3',
-          [finalAmount, finalAmount, customer_id]
-        );
-      } else if (customer_id) {
-        // Update customer stats
-        await client.query(
-          'UPDATE customers SET total_purchases = total_purchases + $1, total_orders = total_orders + 1 WHERE id = $2',
-          [finalAmount, customer_id]
+          [finalAmount, normalizedCustomerId]
         );
       }
 

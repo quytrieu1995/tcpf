@@ -7,6 +7,12 @@ const router = express.Router();
 // Get all categories (tree structure)
 router.get('/', authenticate, async (req, res) => {
   try {
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const result = await db.pool.query(`
       SELECT * FROM categories 
       WHERE is_active = true 
@@ -26,7 +32,21 @@ router.get('/', authenticate, async (req, res) => {
     res.json(buildTree(result.rows));
   } catch (error) {
     console.error('Get categories error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
+    
+    // Return appropriate status code
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

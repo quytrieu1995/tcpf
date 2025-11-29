@@ -7,6 +7,12 @@ const router = express.Router();
 // Get all products
 router.get('/', authenticate, async (req, res) => {
   try {
+    // Check database connection
+    if (!db.pool) {
+      console.error('Database pool not initialized');
+      return res.status(503).json({ message: 'Database connection unavailable' });
+    }
+
     const { search, category, page = 1, limit = 10 } = req.query;
     let query = 'SELECT * FROM products WHERE 1=1';
     const params = [];
@@ -38,7 +44,21 @@ router.get('/', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Get products error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail
+    });
+    
+    // Return appropriate status code
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      return res.status(503).json({ message: 'Database connection failed' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

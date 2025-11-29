@@ -44,13 +44,33 @@ app.use('/api/shipments', require('./routes/shipments'));
 app.use('/api/users', require('./routes/users'));
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    database: 'connected' // You can add actual DB check here
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    let dbStatus = 'disconnected';
+    if (db.pool) {
+      try {
+        await db.pool.query('SELECT NOW()');
+        dbStatus = 'connected';
+      } catch (error) {
+        dbStatus = 'error';
+        console.error('Health check DB error:', error.message);
+      }
+    }
+    
+    res.json({ 
+      status: dbStatus === 'connected' ? 'ok' : 'degraded',
+      message: 'Server is running',
+      timestamp: new Date().toISOString(),
+      database: dbStatus
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Server health check failed',
+      timestamp: new Date().toISOString(),
+      database: 'unknown'
+    });
+  }
 });
 
 // Root endpoint

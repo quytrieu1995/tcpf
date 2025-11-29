@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
-import { Plus, Edit, Trash2, Package, Image as ImageIcon, Grid, List } from 'lucide-react'
+import { Plus, Edit, Trash2, Package, Image as ImageIcon, Grid, List, AlertCircle } from 'lucide-react'
 import { useToast } from '../components/ToastContainer'
 import Modal from '../components/Modal'
 import Input from '../components/Input'
 import Button from '../components/Button'
 import DataTable from '../components/DataTable'
 import { SkeletonCard } from '../components/Skeleton'
+import BackendConnectionCheck from '../components/BackendConnectionCheck'
 
 const Products = () => {
   const toast = useToast()
@@ -46,7 +47,26 @@ const Products = () => {
       setProducts(response.data.products || [])
     } catch (error) {
       console.error('Error fetching products:', error)
-      toast.error('Không thể tải danh sách sản phẩm')
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // More specific error messages
+      if (error.response?.status === 503) {
+        toast.error('Không thể kết nối đến database. Vui lòng kiểm tra backend.')
+      } else if (error.response?.status === 502) {
+        toast.error('Backend không phản hồi. Vui lòng kiểm tra server.')
+      } else if (!error.response) {
+        toast.error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.')
+      } else {
+        toast.error('Không thể tải danh sách sản phẩm')
+      }
+      
+      // Set empty array to prevent UI crash
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -57,6 +77,7 @@ const Products = () => {
       const response = await api.get('/categories')
       // Flatten category tree for select
       const flattenCategories = (cats) => {
+        if (!Array.isArray(cats)) return []
         let result = []
         cats.forEach(cat => {
           result.push(cat)
@@ -66,9 +87,23 @@ const Products = () => {
         })
         return result
       }
-      setCategories(flattenCategories(response.data))
+      setCategories(flattenCategories(response.data || []))
     } catch (error) {
       console.error('Error fetching categories:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // Set empty array to prevent UI crash
+      setCategories([])
+      
+      // Only show toast if it's a critical error
+      if (error.response?.status === 502 || error.response?.status === 503) {
+        toast.error('Không thể tải danh mục. Vui lòng kiểm tra kết nối.')
+      }
     }
   }
 
@@ -292,6 +327,7 @@ const Products = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <BackendConnectionCheck />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Quản lý sản phẩm</h1>

@@ -25,6 +25,7 @@ const KiotViet = () => {
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [showTestModal, setShowTestModal] = useState(false)
   const [formData, setFormData] = useState({
+    retailer_code: '',
     client_id: '',
     client_secret: ''
   })
@@ -68,7 +69,7 @@ const KiotViet = () => {
       const response = await api.post('/kiotviet/config', formData)
       toast.success('Cấu hình KiotViet thành công!')
       setShowConfigModal(false)
-      setFormData({ client_id: '', client_secret: '' })
+      setFormData({ retailer_code: '', client_id: '', client_secret: '' })
       fetchConfig()
     } catch (error) {
       console.error('Error saving config:', error)
@@ -149,7 +150,7 @@ const KiotViet = () => {
         </div>
         <Button
           onClick={() => {
-            setFormData({ client_id: '', client_secret: '' })
+            setFormData({ retailer_code: '', client_id: '', client_secret: '' })
             setShowConfigModal(true)
           }}
         >
@@ -183,6 +184,11 @@ const KiotViet = () => {
                 <p className="text-sm text-gray-600">
                   {config.has_token ? 'Đã kết nối' : 'Chưa kết nối'}
                 </p>
+                {config.retailer_code && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tên miền: <span className="font-medium">{config.retailer_code}</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -355,11 +361,24 @@ const KiotViet = () => {
                 <ol className="list-decimal list-inside space-y-1">
                   <li>Đăng nhập vào KiotViet</li>
                   <li>Vào Thiết lập cửa hàng → Thiết lập kết nối API</li>
-                  <li>Copy Client ID và Client Secret</li>
+                  <li>Copy Tên kết nối (tên miền), Client ID và Client Secret</li>
                 </ol>
+                <p className="mt-2 text-xs">
+                  <strong>Ví dụ:</strong> Nếu địa chỉ của bạn là https://thoitrangmogi.kiotviet.vn, 
+                  thì Tên kết nối là <code className="bg-blue-100 px-1 rounded">thoitrangmogi</code>
+                </p>
               </div>
             </div>
           </div>
+
+          <Input
+            label="Tên miền (Retailer Code)"
+            value={formData.retailer_code}
+            onChange={(e) => setFormData({ ...formData, retailer_code: e.target.value })}
+            required
+            placeholder="Ví dụ: thoitrangmogi"
+            helperText="Tên kết nối từ KiotViet (phần trước .kiotviet.vn)"
+          />
 
           <Input
             label="Client ID"
@@ -386,13 +405,13 @@ const KiotViet = () => {
                 setShowConfigModal(false)
                 setShowTestModal(true)
               }}
-              disabled={!formData.client_id || !formData.client_secret}
+              disabled={!formData.retailer_code || !formData.client_id || !formData.client_secret}
             >
               Kiểm tra kết nối
             </Button>
             <Button
               type="submit"
-              disabled={loading || !formData.client_id || !formData.client_secret}
+              disabled={loading || !formData.retailer_code || !formData.client_id || !formData.client_secret}
               className="flex-1"
             >
               {loading ? 'Đang lưu...' : 'Lưu cấu hình'}
@@ -447,7 +466,7 @@ const KiotViet = () => {
 
           <Button
             onClick={handleTestConnection}
-            disabled={loading || !formData.client_id || !formData.client_secret}
+            disabled={loading || !formData.retailer_code || !formData.client_id || !formData.client_secret}
             className="w-full"
           >
             {loading ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}

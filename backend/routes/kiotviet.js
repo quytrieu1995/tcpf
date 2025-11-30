@@ -15,6 +15,7 @@ router.get('/config', authenticate, async (req, res) => {
     // Don't return sensitive data
     res.json({
       configured: true,
+      retailer_code: config.retailer_code,
       is_active: config.is_active,
       last_sync_at: config.last_sync_at,
       token_expires_at: config.token_expires_at,
@@ -28,6 +29,7 @@ router.get('/config', authenticate, async (req, res) => {
 
 // Save/Update KiotViet configuration
 router.post('/config', authenticate, [
+  body('retailer_code').notEmpty().withMessage('Tên miền (Retailer Code) is required'),
   body('client_id').notEmpty().withMessage('Client ID is required'),
   body('client_secret').notEmpty().withMessage('Client Secret is required')
 ], async (req, res) => {
@@ -37,10 +39,10 @@ router.post('/config', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { client_id, client_secret } = req.body;
+    const { retailer_code, client_id, client_secret } = req.body;
 
     // Test connection first
-    const testResult = await kiotvietService.testConnection(client_id, client_secret);
+    const testResult = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
     if (!testResult.success) {
       return res.status(400).json({ 
         message: 'Connection test failed',
@@ -49,10 +51,10 @@ router.post('/config', authenticate, [
     }
 
     // Save configuration
-    const config = await kiotvietService.saveConfig(client_id, client_secret);
+    const config = await kiotvietService.saveConfig(retailer_code, client_id, client_secret);
     
     // Get access token
-    await kiotvietService.getAccessToken(client_id, client_secret);
+    await kiotvietService.getAccessToken(retailer_code, client_id, client_secret);
 
     res.json({
       message: 'KiotViet configuration saved successfully',
@@ -69,6 +71,7 @@ router.post('/config', authenticate, [
 
 // Test connection
 router.post('/test-connection', authenticate, [
+  body('retailer_code').notEmpty().withMessage('Tên miền (Retailer Code) is required'),
   body('client_id').notEmpty().withMessage('Client ID is required'),
   body('client_secret').notEmpty().withMessage('Client Secret is required')
 ], async (req, res) => {
@@ -78,8 +81,8 @@ router.post('/test-connection', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { client_id, client_secret } = req.body;
-    const result = await kiotvietService.testConnection(client_id, client_secret);
+    const { retailer_code, client_id, client_secret } = req.body;
+    const result = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
 
     if (result.success) {
       res.json({

@@ -44,6 +44,7 @@ const init = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS kiotviet_config (
         id SERIAL PRIMARY KEY,
+        retailer_code VARCHAR(255) NOT NULL,
         client_id VARCHAR(255) NOT NULL,
         client_secret VARCHAR(255) NOT NULL,
         access_token TEXT,

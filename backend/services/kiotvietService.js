@@ -20,24 +20,24 @@ class KiotVietService {
   /**
    * Save or update KiotViet configuration
    */
-  async saveConfig(clientId, clientSecret) {
+  async saveConfig(retailerCode, clientId, clientSecret) {
     const existing = await this.getConfig();
     
     if (existing) {
       const result = await db.pool.query(
         `UPDATE kiotviet_config 
-         SET client_id = $1, client_secret = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
+         SET retailer_code = $1, client_id = $2, client_secret = $3, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4
          RETURNING *`,
-        [clientId, clientSecret, existing.id]
+        [retailerCode, clientId, clientSecret, existing.id]
       );
       return result.rows[0];
     } else {
       const result = await db.pool.query(
-        `INSERT INTO kiotviet_config (client_id, client_secret, is_active)
-         VALUES ($1, $2, true)
+        `INSERT INTO kiotviet_config (retailer_code, client_id, client_secret, is_active)
+         VALUES ($1, $2, $3, true)
          RETURNING *`,
-        [clientId, clientSecret]
+        [retailerCode, clientId, clientSecret]
       );
       return result.rows[0];
     }
@@ -46,7 +46,7 @@ class KiotVietService {
   /**
    * Get access token from KiotViet using OAuth2
    */
-  async getAccessToken(clientId, clientSecret) {
+  async getAccessToken(retailerCode, clientId, clientSecret) {
     try {
       const response = await axios.post(
         this.tokenURL,
@@ -58,7 +58,8 @@ class KiotVietService {
         }),
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Retailer': retailerCode
           }
         }
       );
@@ -79,6 +80,9 @@ class KiotVietService {
           [access_token, refresh_token || null, expiresAt, config.id]
         );
       }
+      
+      // Store retailer code for API requests
+      this.currentRetailerCode = retailerCode;
 
       return {
         access_token,
@@ -107,8 +111,11 @@ class KiotVietService {
     
     if (!config.access_token || !expiresAt || expiresAt <= now) {
       console.log('[KIOTVIET] Token expired or missing, refreshing...');
-      return await this.getAccessToken(config.client_id, config.client_secret);
+      return await this.getAccessToken(config.retailer_code, config.client_id, config.client_secret);
     }
+    
+    // Store retailer code for API requests
+    this.currentRetailerCode = config.retailer_code;
 
     return {
       access_token: config.access_token,
@@ -122,6 +129,12 @@ class KiotVietService {
   async makeRequest(endpoint, method = 'GET', data = null) {
     const tokenData = await this.getValidToken();
     const accessToken = tokenData.access_token;
+    const config = await this.getConfig();
+    const retailerCode = config?.retailer_code || this.currentRetailerCode;
+
+    if (!retailerCode) {
+      throw new Error('Retailer code is required');
+    }
 
     try {
       const response = await axios({
@@ -129,6 +142,7 @@ class KiotVietService {
         url: `${this.baseURL}${endpoint}`,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'Retailer': retailerCode,
           'Content-Type': 'application/json'
         },
         data
@@ -141,9 +155,11 @@ class KiotVietService {
       // If token expired, try once more with new token
       if (error.response?.status === 401) {
         console.log('[KIOTVIET] Token invalid, refreshing and retrying...');
+        const config = await this.getConfig();
         const newTokenData = await this.getAccessToken(
-          (await this.getConfig()).client_id,
-          (await this.getConfig()).client_secret
+          config.retailer_code,
+          config.client_id,
+          config.client_secret
         );
         
         const retryResponse = await axios({
@@ -151,6 +167,7 @@ class KiotVietService {
           url: `${this.baseURL}${endpoint}`,
           headers: {
             'Authorization': `Bearer ${newTokenData.access_token}`,
+            'Retailer': config.retailer_code,
             'Content-Type': 'application/json'
           },
           data
@@ -511,9 +528,9 @@ class KiotVietService {
   /**
    * Test connection
    */
-  async testConnection(clientId, clientSecret) {
+  async testConnection(retailerCode, clientId, clientSecret) {
     try {
-      const tokenData = await this.getAccessToken(clientId, clientSecret);
+      const tokenData = await this.getAccessToken(retailerCode, clientId, clientSecret);
       
       // Try to get a simple endpoint to verify connection
       await this.makeRequest('/api/customers?pageSize=1');

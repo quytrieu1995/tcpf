@@ -497,8 +497,7 @@ class KiotVietService {
         errors: errors.slice(0, 10) // Limit error log
       });
 
-      // Update last sync time
-      const config = await this.getConfig();
+      // Update last sync time (reuse config from line 367)
       if (config) {
         await db.pool.query(
           'UPDATE kiotviet_config SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1',
@@ -538,17 +537,17 @@ class KiotVietService {
 
     try {
       // Find or create customer if exists in order
-    let customerId = null;
-    if (kvOrder.customerId || kvOrder.customer?.id) {
-      const customerResult = await db.pool.query(
-        'SELECT id FROM customers WHERE kiotviet_id = $1',
-        [kvOrder.customerId?.toString() || kvOrder.customer?.id?.toString()]
-      );
-      customerId = customerResult.rows[0]?.id || null;
-    }
+      let customerId = null;
+      if (kvOrder.customerId || kvOrder.customer?.id) {
+        const customerResult = await db.pool.query(
+          'SELECT id FROM customers WHERE kiotviet_id = $1',
+          [kvOrder.customerId?.toString() || kvOrder.customer?.id?.toString()]
+        );
+        customerId = customerResult.rows[0]?.id || null;
+      }
 
-    // Map KiotViet order to our order format
-    const orderData = {
+      // Map KiotViet order to our order format
+      const orderData = {
       kiotviet_id: kvOrder.id?.toString(),
       order_number: kvOrder.code || kvOrder.invoiceNumber || `KV-${kvOrder.id}`,
       customer_id: customerId,
@@ -557,25 +556,25 @@ class KiotVietService {
       delivery_status: this.mapKiotVietDeliveryStatus(kvOrder.deliveryStatus || kvOrder.status),
       payment_method: this.mapKiotVietPaymentMethod(kvOrder.paymentMethod || kvOrder.paymentMethodId),
       notes: (kvOrder.description || kvOrder.note || '').substring(0, 1000), // Limit length
-      kiotviet_data: JSON.stringify(kvOrder),
-      created_at: this.parseDate(kvOrder.createdDate) || new Date(),
-      updated_at: this.parseDate(kvOrder.modifiedDate) || new Date()
-    };
+        kiotviet_data: JSON.stringify(kvOrder),
+        created_at: this.parseDate(kvOrder.createdDate) || new Date(),
+        updated_at: this.parseDate(kvOrder.modifiedDate) || new Date()
+      };
 
-    // Validate required fields
-    if (!orderData.order_number) {
-      throw new Error(`Invalid order: missing order_number for order ${kvOrder.id}`);
-    }
+      // Validate required fields
+      if (!orderData.order_number) {
+        throw new Error(`Invalid order: missing order_number for order ${kvOrder.id}`);
+      }
 
-    // Check if order already exists
-    const existing = await db.pool.query(
-      'SELECT id FROM orders WHERE kiotviet_id = $1 OR order_number = $2',
-      [orderData.kiotviet_id, orderData.order_number]
-    );
+      // Check if order already exists
+      const existing = await db.pool.query(
+        'SELECT id FROM orders WHERE kiotviet_id = $1 OR order_number = $2',
+        [orderData.kiotviet_id, orderData.order_number]
+      );
 
-    if (existing.rows.length > 0) {
-      // Update existing order
-      await db.pool.query(
+      if (existing.rows.length > 0) {
+        // Update existing order
+        await db.pool.query(
         `UPDATE orders 
          SET total_amount = $1, status = $2, delivery_status = $3, 
              payment_method = $4, notes = $5, kiotviet_data = $6, updated_at = $7,
@@ -593,10 +592,10 @@ class KiotVietService {
           existing.rows[0].id
         ]
       );
-    } else {
-      // Create new order - handle duplicate order_number manually
-      try {
-        const result = await db.pool.query(
+      } else {
+        // Create new order - handle duplicate order_number manually
+        try {
+          const result = await db.pool.query(
           `INSERT INTO orders (
             kiotviet_id, order_number, customer_id, total_amount, status, 
             delivery_status, payment_method, notes, kiotviet_data, created_at, updated_at
@@ -616,22 +615,22 @@ class KiotVietService {
             orderData.created_at,
             orderData.updated_at
           ]
-        );
+          );
 
-        const orderId = result.rows[0].id;
+          const orderId = result.rows[0].id;
 
-        // Sync order items if available
-        if (kvOrder.orderDetails && Array.isArray(kvOrder.orderDetails)) {
-          for (const item of kvOrder.orderDetails) {
-            try {
-              await this.syncOrderItem(orderId, item);
-            } catch (itemError) {
-              console.error(`[KIOTVIET] Error syncing order item:`, itemError.message);
-              // Continue with other items
+          // Sync order items if available
+          if (kvOrder.orderDetails && Array.isArray(kvOrder.orderDetails)) {
+            for (const item of kvOrder.orderDetails) {
+              try {
+                await this.syncOrderItem(orderId, item);
+              } catch (itemError) {
+                console.error(`[KIOTVIET] Error syncing order item:`, itemError.message);
+                // Continue with other items
+              }
             }
           }
-        }
-      } catch (insertError) {
+        } catch (insertError) {
         // If duplicate order_number, try to update instead
         if (insertError.code === '23505' || insertError.message.includes('duplicate') || insertError.message.includes('unique')) {
           console.log(`[KIOTVIET] Order ${orderData.order_number} already exists, updating instead...`);
@@ -666,6 +665,10 @@ class KiotVietService {
           throw insertError;
         }
       }
+      }
+    } catch (error) {
+      console.error('[KIOTVIET] Error syncing order to database:', error);
+      throw error;
     }
   }
 

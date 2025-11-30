@@ -44,7 +44,6 @@ const init = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS kiotviet_config (
         id SERIAL PRIMARY KEY,
-        retailer_code VARCHAR(255) NOT NULL,
         client_id VARCHAR(255) NOT NULL,
         client_secret VARCHAR(255) NOT NULL,
         access_token TEXT,
@@ -57,6 +56,27 @@ const init = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add retailer_code column if it doesn't exist (for existing tables)
+    try {
+      await pool.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'kiotviet_config' 
+            AND column_name = 'retailer_code'
+          ) THEN
+            ALTER TABLE kiotviet_config 
+            ADD COLUMN retailer_code VARCHAR(255);
+            RAISE NOTICE 'Added retailer_code column to kiotviet_config';
+          END IF;
+        END $$;
+      `);
+      console.log('✅ KiotViet config table checked/updated');
+    } catch (error) {
+      console.warn('⚠️  Could not add retailer_code column (may already exist):', error.message);
+    }
 
     // Create KiotViet sync logs table
     await pool.query(`

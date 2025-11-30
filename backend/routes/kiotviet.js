@@ -247,20 +247,47 @@ router.post('/sync/customers', authenticate, async (req, res) => {
   try {
     const { pageSize, pageNumber } = req.body;
 
-    const service = getKiotVietService();
-    const result = await service.syncCustomers({
-      pageSize: pageSize || 100,
-      pageNumber: pageNumber || 1
-    });
+    // Get service with error handling
+    let service;
+    try {
+      service = getKiotVietService();
+    } catch (serviceError) {
+      console.error('[KIOTVIET SYNC CUSTOMERS] Failed to load service:', serviceError);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to initialize KiotViet service',
+        error: serviceError.message,
+        details: process.env.NODE_ENV === 'development' ? serviceError.stack : undefined
+      });
+    }
+
+    let result;
+    try {
+      result = await service.syncCustomers({
+        pageSize: pageSize || 100,
+        pageNumber: pageNumber || 1
+      });
+    } catch (syncError) {
+      console.error('[KIOTVIET SYNC CUSTOMERS] Sync error:', syncError);
+      console.error('[KIOTVIET SYNC CUSTOMERS] Error stack:', syncError.stack);
+      return res.status(500).json({ 
+        success: false,
+        message: syncError.message || 'Failed to sync customers',
+        error: syncError.message,
+        details: process.env.NODE_ENV === 'development' ? syncError.stack : undefined
+      });
+    }
 
     res.json({
+      success: true,
       message: 'Customers synced successfully',
       ...result
     });
   } catch (error) {
-    console.error('Sync customers error:', error);
-    console.error('Error stack:', error.stack);
+    console.error('[KIOTVIET SYNC CUSTOMERS] Unexpected error:', error);
+    console.error('[KIOTVIET SYNC CUSTOMERS] Error stack:', error.stack);
     res.status(500).json({ 
+      success: false,
       message: error.message || 'Failed to sync customers',
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined

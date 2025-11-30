@@ -728,6 +728,17 @@ class KiotVietService {
     const { pageSize = 100, pageNumber = 1 } = options;
     
     try {
+      console.log('[KIOTVIET] Starting sync customers with options:', { pageSize, pageNumber });
+      
+      // Check config first
+      const config = await this.getConfig();
+      if (!config || !config.is_active) {
+        throw new Error('KiotViet configuration not found or inactive');
+      }
+      if (!config.access_token && !config.retailer_code) {
+        throw new Error('KiotViet not configured. Please configure first.');
+      }
+
       const endpoint = `/api/customers?pageSize=${pageSize}&currentItem=${(pageNumber - 1) * pageSize}`;
       
       console.log('[KIOTVIET] Syncing customers from endpoint:', endpoint);
@@ -811,7 +822,7 @@ class KiotVietService {
         errors: errors.slice(0, 10)
       });
 
-      const config = await this.getConfig();
+      // Update last sync time (reuse config from line 737)
       if (config) {
         await db.pool.query(
           'UPDATE kiotviet_config SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1',
@@ -849,7 +860,8 @@ class KiotVietService {
       throw new Error('Invalid customer data: missing id');
     }
 
-    const customerData = {
+    try {
+      const customerData = {
       kiotviet_id: kvCustomer.id?.toString(),
       code: kvCustomer.code || kvCustomer.customerCode || `KV-${kvCustomer.id}`,
       name: (kvCustomer.name || kvCustomer.contactName || kvCustomer.customerName || '').substring(0, 255),
@@ -938,6 +950,10 @@ class KiotVietService {
           throw insertError;
         }
       }
+      }
+    } catch (error) {
+      console.error('[KIOTVIET] Error syncing customer to database:', error);
+      throw error;
     }
   }
 

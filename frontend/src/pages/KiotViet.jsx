@@ -142,16 +142,32 @@ const KiotViet = () => {
     try {
       setSyncing(true)
       const response = await api.post(`/kiotviet/sync/${type}`)
-      toast.success(`${type === 'orders' ? 'Đơn hàng' : 'Khách hàng'} đã được đồng bộ thành công!`)
-      fetchSyncLogs()
       
-      // Show sync result
-      if (response.data.synced > 0 || response.data.failed > 0) {
-        toast.info(`Đồng bộ: ${response.data.synced} thành công, ${response.data.failed} thất bại`)
+      // Show detailed result
+      const { synced, failed, total, errors } = response.data
+      
+      if (synced > 0) {
+        toast.success(`${type === 'orders' ? 'Đơn hàng' : 'Khách hàng'}: ${synced} bản ghi đã được đồng bộ thành công!`)
+      } else if (total === 0) {
+        toast.info('Không có dữ liệu mới để đồng bộ')
+      } else {
+        toast.warning(`Đồng bộ hoàn tất: ${synced} thành công, ${failed} thất bại`)
       }
+      
+      if (failed > 0 && errors && errors.length > 0) {
+        console.warn(`[KIOTVIET] Sync errors:`, errors)
+        // Show first few errors
+        const errorMessages = errors.slice(0, 3).map(e => e.error || e.message).join(', ')
+        if (errorMessages) {
+          toast.error(`Một số bản ghi thất bại: ${errorMessages}${errors.length > 3 ? '...' : ''}`)
+        }
+      }
+      
+      fetchSyncLogs()
     } catch (error) {
       console.error(`Error syncing ${type}:`, error)
-      toast.error(error.response?.data?.message || `Có lỗi xảy ra khi đồng bộ ${type === 'orders' ? 'đơn hàng' : 'khách hàng'}`)
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Có lỗi xảy ra khi đồng bộ ${type === 'orders' ? 'đơn hàng' : 'khách hàng'}`
+      toast.error(errorMessage)
     } finally {
       setSyncing(false)
     }

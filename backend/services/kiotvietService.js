@@ -351,6 +351,21 @@ class KiotVietService {
         orders = response.data.data;
       } else if (response.data && response.data.items) {
         orders = response.data.items;
+      } else if (response.data && Array.isArray(response.data)) {
+        orders = response.data;
+      } else if (response && typeof response === 'object') {
+        // Try to find any array property
+        for (const key in response) {
+          if (Array.isArray(response[key])) {
+            orders = response[key];
+            break;
+          }
+        }
+      }
+
+      if (!Array.isArray(orders)) {
+        console.warn('[KIOTVIET] Unexpected response format:', JSON.stringify(response).substring(0, 200));
+        orders = [];
       }
 
       console.log(`[KIOTVIET] Found ${orders.length} orders to sync`);
@@ -361,15 +376,27 @@ class KiotVietService {
 
       for (const kvOrder of orders) {
         try {
+          if (!kvOrder || !kvOrder.id) {
+            console.warn('[KIOTVIET] Skipping invalid order:', JSON.stringify(kvOrder).substring(0, 100));
+            failed++;
+            continue;
+          }
           await this.syncOrderToDatabase(kvOrder);
           synced++;
         } catch (error) {
           failed++;
-          errors.push({
-            order_id: kvOrder.id,
-            error: error.message
-          });
-          console.error(`[KIOTVIET] Error syncing order ${kvOrder.id}:`, error.message);
+          const errorInfo = {
+            order_id: kvOrder?.id || 'unknown',
+            order_code: kvOrder?.code || kvOrder?.invoiceNumber || 'unknown',
+            error: error.message || 'Unknown error'
+          };
+          errors.push(errorInfo);
+          console.error(`[KIOTVIET] Error syncing order ${errorInfo.order_id}:`, error.message);
+          
+          // Log detailed error for debugging
+          if (error.stack) {
+            console.error(`[KIOTVIET] Error stack:`, error.stack.substring(0, 500));
+          }
         }
       }
 
@@ -389,16 +416,23 @@ class KiotVietService {
         );
       }
 
-      return {
-        success: true,
+      const result = {
+        success: synced > 0 || orders.length === 0, // Success if we synced something or there was nothing to sync
         synced,
         failed,
         total: orders.length,
-        errors: errors.slice(0, 10)
+        errors: errors.slice(0, 20) // Show more errors
       };
+
+      // Log summary
+      console.log(`[KIOTVIET] Sync orders completed: ${synced} synced, ${failed} failed out of ${orders.length} total`);
+
+      return result;
     } catch (error) {
+      console.error('[KIOTVIET] Sync orders failed:', error);
       await this.logSync('orders', 'failed', {
-        error: error.message
+        error: error.message,
+        stack: error.stack?.substring(0, 500)
       });
       throw error;
     }
@@ -408,6 +442,10 @@ class KiotVietService {
    * Sync single order to database
    */
   async syncOrderToDatabase(kvOrder) {
+    if (!kvOrder || !kvOrder.id) {
+      throw new Error('Invalid order data: missing id');
+    }
+
     // Find or create customer if exists in order
     let customerId = null;
     if (kvOrder.customerId || kvOrder.customer?.id) {
@@ -421,17 +459,22 @@ class KiotVietService {
     // Map KiotViet order to our order format
     const orderData = {
       kiotviet_id: kvOrder.id?.toString(),
-      order_number: kvOrder.code || `KV-${kvOrder.id}`,
+      order_number: kvOrder.code || kvOrder.invoiceNumber || `KV-${kvOrder.id}`,
       customer_id: customerId,
-      total_amount: kvOrder.total || 0,
-      status: this.mapKiotVietStatus(kvOrder.status),
-      delivery_status: this.mapKiotVietDeliveryStatus(kvOrder.deliveryStatus),
-      payment_method: this.mapKiotVietPaymentMethod(kvOrder.paymentMethod),
-      notes: kvOrder.description || '',
+      total_amount: parseFloat(kvOrder.total || kvOrder.totalPayment || 0),
+      status: this.mapKiotVietStatus(kvOrder.status || kvOrder.invoiceStatus),
+      delivery_status: this.mapKiotVietDeliveryStatus(kvOrder.deliveryStatus || kvOrder.status),
+      payment_method: this.mapKiotVietPaymentMethod(kvOrder.paymentMethod || kvOrder.paymentMethodId),
+      notes: (kvOrder.description || kvOrder.note || '').substring(0, 1000), // Limit length
       kiotviet_data: JSON.stringify(kvOrder),
       created_at: kvOrder.createdDate ? new Date(kvOrder.createdDate) : new Date(),
       updated_at: kvOrder.modifiedDate ? new Date(kvOrder.modifiedDate) : new Date()
     };
+
+    // Validate required fields
+    if (!orderData.order_number) {
+      throw new Error(`Invalid order: missing order_number for order ${kvOrder.id}`);
+    }
 
     // Check if order already exists
     const existing = await db.pool.query(
@@ -444,8 +487,9 @@ class KiotVietService {
       await db.pool.query(
         `UPDATE orders 
          SET total_amount = $1, status = $2, delivery_status = $3, 
-             payment_method = $4, notes = $5, kiotviet_data = $6, updated_at = $7
-         WHERE id = $8`,
+             payment_method = $4, notes = $5, kiotviet_data = $6, updated_at = $7,
+             customer_id = COALESCE($8, customer_id)
+         WHERE id = $9`,
         [
           orderData.total_amount,
           orderData.status,
@@ -454,17 +498,26 @@ class KiotVietService {
           orderData.notes,
           orderData.kiotviet_data,
           orderData.updated_at,
+          orderData.customer_id,
           existing.rows[0].id
         ]
       );
     } else {
-      // Create new order
+      // Create new order - use ON CONFLICT to handle duplicate order_number
       const result = await db.pool.query(
         `INSERT INTO orders (
           kiotviet_id, order_number, customer_id, total_amount, status, 
           delivery_status, payment_method, notes, kiotviet_data, created_at, updated_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (order_number) DO UPDATE SET
+          total_amount = EXCLUDED.total_amount,
+          status = EXCLUDED.status,
+          delivery_status = EXCLUDED.delivery_status,
+          payment_method = EXCLUDED.payment_method,
+          notes = EXCLUDED.notes,
+          kiotviet_data = EXCLUDED.kiotviet_data,
+          updated_at = EXCLUDED.updated_at
         RETURNING id`,
         [
           orderData.kiotviet_id,
@@ -481,10 +534,17 @@ class KiotVietService {
         ]
       );
 
+      const orderId = result.rows[0].id;
+
       // Sync order items if available
       if (kvOrder.orderDetails && Array.isArray(kvOrder.orderDetails)) {
         for (const item of kvOrder.orderDetails) {
-          await this.syncOrderItem(result.rows[0].id, item);
+          try {
+            await this.syncOrderItem(orderId, item);
+          } catch (itemError) {
+            console.error(`[KIOTVIET] Error syncing order item:`, itemError.message);
+            // Continue with other items
+          }
         }
       }
     }
@@ -494,26 +554,49 @@ class KiotVietService {
    * Sync order item
    */
   async syncOrderItem(orderId, kvItem) {
+    if (!kvItem) {
+      throw new Error('Invalid order item data');
+    }
+
     // Find product by SKU or name
-    const product = await db.pool.query(
-      'SELECT id FROM products WHERE sku = $1 OR name = $2 LIMIT 1',
-      [kvItem.productCode || kvItem.product?.code, kvItem.productName || kvItem.product?.name]
+    const productCode = kvItem.productCode || kvItem.product?.code || kvItem.code;
+    const productName = kvItem.productName || kvItem.product?.name || kvItem.name;
+    
+    let productId = null;
+    if (productCode || productName) {
+      const product = await db.pool.query(
+        'SELECT id FROM products WHERE sku = $1 OR name = $2 LIMIT 1',
+        [productCode, productName]
+      );
+      productId = product.rows[0]?.id || null;
+    }
+
+    const quantity = parseFloat(kvItem.quantity || kvItem.quantity || 0);
+    const price = parseFloat(kvItem.price || kvItem.price || 0);
+    const subtotal = quantity * price;
+
+    // Check if item already exists
+    const existing = await db.pool.query(
+      'SELECT id FROM order_items WHERE order_id = $1 AND product_id = $2',
+      [orderId, productId]
     );
 
-    const productId = product.rows[0]?.id || null;
-
-    await db.pool.query(
-      `INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT DO NOTHING`,
-      [
-        orderId,
-        productId,
-        kvItem.quantity || 0,
-        kvItem.price || 0,
-        (kvItem.quantity || 0) * (kvItem.price || 0)
-      ]
-    );
+    if (existing.rows.length > 0) {
+      // Update existing item
+      await db.pool.query(
+        `UPDATE order_items 
+         SET quantity = $1, price = $2, subtotal = $3
+         WHERE id = $4`,
+        [quantity, price, subtotal, existing.rows[0].id]
+      );
+    } else {
+      // Insert new item
+      await db.pool.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [orderId, productId, quantity, price, subtotal]
+      );
+    }
   }
 
   /**
@@ -551,6 +634,21 @@ class KiotVietService {
         customers = response.data.data;
       } else if (response.data && response.data.items) {
         customers = response.data.items;
+      } else if (response.data && Array.isArray(response.data)) {
+        customers = response.data;
+      } else if (response && typeof response === 'object') {
+        // Try to find any array property
+        for (const key in response) {
+          if (Array.isArray(response[key])) {
+            customers = response[key];
+            break;
+          }
+        }
+      }
+
+      if (!Array.isArray(customers)) {
+        console.warn('[KIOTVIET] Unexpected response format:', JSON.stringify(response).substring(0, 200));
+        customers = [];
       }
 
       console.log(`[KIOTVIET] Found ${customers.length} customers to sync`);
@@ -561,15 +659,27 @@ class KiotVietService {
 
       for (const kvCustomer of customers) {
         try {
+          if (!kvCustomer || !kvCustomer.id) {
+            console.warn('[KIOTVIET] Skipping invalid customer:', JSON.stringify(kvCustomer).substring(0, 100));
+            failed++;
+            continue;
+          }
           await this.syncCustomerToDatabase(kvCustomer);
           synced++;
         } catch (error) {
           failed++;
-          errors.push({
-            customer_id: kvCustomer.id,
-            error: error.message
-          });
-          console.error(`[KIOTVIET] Error syncing customer ${kvCustomer.id}:`, error.message);
+          const errorInfo = {
+            customer_id: kvCustomer?.id || 'unknown',
+            customer_code: kvCustomer?.code || kvCustomer?.customerCode || 'unknown',
+            error: error.message || 'Unknown error'
+          };
+          errors.push(errorInfo);
+          console.error(`[KIOTVIET] Error syncing customer ${errorInfo.customer_id}:`, error.message);
+          
+          // Log detailed error for debugging
+          if (error.stack) {
+            console.error(`[KIOTVIET] Error stack:`, error.stack.substring(0, 500));
+          }
         }
       }
 
@@ -587,16 +697,23 @@ class KiotVietService {
         );
       }
 
-      return {
-        success: true,
+      const result = {
+        success: synced > 0 || customers.length === 0, // Success if we synced something or there was nothing to sync
         synced,
         failed,
         total: customers.length,
-        errors: errors.slice(0, 10)
+        errors: errors.slice(0, 20) // Show more errors
       };
+
+      // Log summary
+      console.log(`[KIOTVIET] Sync customers completed: ${synced} synced, ${failed} failed out of ${customers.length} total`);
+
+      return result;
     } catch (error) {
+      console.error('[KIOTVIET] Sync customers failed:', error);
       await this.logSync('customers', 'failed', {
-        error: error.message
+        error: error.message,
+        stack: error.stack?.substring(0, 500)
       });
       throw error;
     }
@@ -606,27 +723,39 @@ class KiotVietService {
    * Sync single customer to database
    */
   async syncCustomerToDatabase(kvCustomer) {
+    if (!kvCustomer || !kvCustomer.id) {
+      throw new Error('Invalid customer data: missing id');
+    }
+
     const customerData = {
       kiotviet_id: kvCustomer.id?.toString(),
-      code: kvCustomer.code || `KV-${kvCustomer.id}`,
-      name: kvCustomer.name || kvCustomer.contactName || '',
-      email: kvCustomer.email || '',
-      phone: kvCustomer.contactNumber || kvCustomer.phoneNumber || '',
-      address: kvCustomer.address || '',
+      code: kvCustomer.code || kvCustomer.customerCode || `KV-${kvCustomer.id}`,
+      name: (kvCustomer.name || kvCustomer.contactName || kvCustomer.customerName || '').substring(0, 255),
+      email: (kvCustomer.email || kvCustomer.emailAddress || '').substring(0, 100),
+      phone: (kvCustomer.contactNumber || kvCustomer.phoneNumber || kvCustomer.mobile || '').substring(0, 20),
+      address: (kvCustomer.address || kvCustomer.addressLine || '').substring(0, 500),
       kiotviet_data: JSON.stringify(kvCustomer)
     };
 
+    // Validate required fields
+    if (!customerData.name || customerData.name.trim() === '') {
+      customerData.name = `Khách hàng ${customerData.code}`;
+    }
+
     // Check if customer exists
     const existing = await db.pool.query(
-      'SELECT id FROM customers WHERE kiotviet_id = $1 OR code = $2 OR email = $3',
-      [customerData.kiotviet_id, customerData.code, customerData.email]
+      'SELECT id FROM customers WHERE kiotviet_id = $1 OR (code = $2 AND code IS NOT NULL)',
+      [customerData.kiotviet_id, customerData.code]
     );
 
     if (existing.rows.length > 0) {
-      // Update existing customer
+      // Update existing customer - use ON CONFLICT to handle unique constraints
       await db.pool.query(
         `UPDATE customers 
-         SET name = $1, email = $2, phone = $3, address = $4, kiotviet_data = $5
+         SET name = $1, email = COALESCE(NULLIF($2, ''), email), 
+             phone = COALESCE(NULLIF($3, ''), phone), 
+             address = COALESCE(NULLIF($4, ''), address), 
+             kiotviet_data = $5
          WHERE id = $6`,
         [
           customerData.name,
@@ -638,20 +767,53 @@ class KiotVietService {
         ]
       );
     } else {
-      // Create new customer
-      await db.pool.query(
-        `INSERT INTO customers (kiotviet_id, code, name, email, phone, address, kiotviet_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          customerData.kiotviet_id,
-          customerData.code,
-          customerData.name,
-          customerData.email,
-          customerData.phone,
-          customerData.address,
-          customerData.kiotviet_data
-        ]
-      );
+      // Create new customer - use ON CONFLICT to handle duplicate code/email
+      try {
+        await db.pool.query(
+          `INSERT INTO customers (kiotviet_id, code, name, email, phone, address, kiotviet_data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (code) DO UPDATE SET
+             name = EXCLUDED.name,
+             email = COALESCE(NULLIF(EXCLUDED.email, ''), customers.email),
+             phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+             address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+             kiotviet_data = EXCLUDED.kiotviet_data`,
+          [
+            customerData.kiotviet_id,
+            customerData.code,
+            customerData.name,
+            customerData.email || null,
+            customerData.phone || null,
+            customerData.address || null,
+            customerData.kiotviet_data
+          ]
+        );
+      } catch (error) {
+        // If still fails, try without code constraint
+        if (error.code === '23505') { // Unique violation
+          await db.pool.query(
+            `INSERT INTO customers (kiotviet_id, code, name, email, phone, address, kiotviet_data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (kiotviet_id) DO UPDATE SET
+               name = EXCLUDED.name,
+               email = COALESCE(NULLIF(EXCLUDED.email, ''), customers.email),
+               phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
+               address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
+               kiotviet_data = EXCLUDED.kiotviet_data`,
+            [
+              customerData.kiotviet_id,
+              customerData.code,
+              customerData.name,
+              customerData.email || null,
+              customerData.phone || null,
+              customerData.address || null,
+              customerData.kiotviet_data
+            ]
+          );
+        } else {
+          throw error;
+        }
+      }
     }
   }
 

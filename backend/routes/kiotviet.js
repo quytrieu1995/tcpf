@@ -41,20 +41,63 @@ router.post('/config', authenticate, [
 
     const { retailer_code, client_id, client_secret } = req.body;
 
+    console.log('[KIOTVIET CONFIG] Saving configuration:', {
+      retailer_code,
+      client_id: client_id?.substring(0, 10) + '...',
+      has_secret: !!client_secret
+    });
+
     // Test connection first
-    const testResult = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
-    if (!testResult.success) {
+    let testResult;
+    try {
+      testResult = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
+      if (!testResult.success) {
+        return res.status(400).json({ 
+          message: 'Connection test failed',
+          error: testResult.message,
+          details: testResult.details
+        });
+      }
+    } catch (testError) {
+      console.error('[KIOTVIET CONFIG] Test connection error:', testError);
       return res.status(400).json({ 
         message: 'Connection test failed',
-        error: testResult.message 
+        error: testError.message || 'Cannot connect to KiotViet API',
+        details: process.env.NODE_ENV === 'development' ? testError.stack : undefined
       });
     }
 
     // Save configuration
-    const config = await kiotvietService.saveConfig(retailer_code, client_id, client_secret);
+    let config;
+    try {
+      config = await kiotvietService.saveConfig(retailer_code, client_id, client_secret);
+      console.log('[KIOTVIET CONFIG] Configuration saved:', { configId: config.id });
+    } catch (saveError) {
+      console.error('[KIOTVIET CONFIG] Save config error:', saveError);
+      return res.status(500).json({ 
+        message: 'Failed to save configuration',
+        error: saveError.message,
+        details: process.env.NODE_ENV === 'development' ? saveError.stack : undefined
+      });
+    }
     
-    // Get access token
-    await kiotvietService.getAccessToken(retailer_code, client_id, client_secret);
+    // Get access token and save it
+    try {
+      const tokenData = await kiotvietService.getAccessToken(retailer_code, client_id, client_secret);
+      console.log('[KIOTVIET CONFIG] Access token obtained:', {
+        hasToken: !!tokenData.access_token,
+        expiresAt: tokenData.expires_at
+      });
+    } catch (tokenError) {
+      console.error('[KIOTVIET CONFIG] Get token error:', tokenError);
+      // Config is saved but token failed - still return success but warn
+      return res.status(200).json({
+        message: 'Configuration saved but failed to get access token. Please try again.',
+        configured: true,
+        warning: tokenError.message,
+        token_expires_at: testResult.token_expires_at
+      });
+    }
 
     res.json({
       message: 'KiotViet configuration saved successfully',
@@ -62,9 +105,12 @@ router.post('/config', authenticate, [
       token_expires_at: testResult.token_expires_at
     });
   } catch (error) {
-    console.error('Save KiotViet config error:', error);
+    console.error('[KIOTVIET CONFIG] Unexpected error:', error);
+    console.error('[KIOTVIET CONFIG] Error stack:', error.stack);
     res.status(500).json({ 
-      message: error.message || 'Server error' 
+      message: error.message || 'Server error',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -82,6 +128,13 @@ router.post('/test-connection', authenticate, [
     }
 
     const { retailer_code, client_id, client_secret } = req.body;
+    
+    console.log('[KIOTVIET TEST] Testing connection:', {
+      retailer_code,
+      client_id: client_id?.substring(0, 10) + '...',
+      has_secret: !!client_secret
+    });
+
     const result = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
 
     if (result.success) {
@@ -99,9 +152,12 @@ router.post('/test-connection', authenticate, [
       });
     }
   } catch (error) {
-    console.error('Test connection error:', error);
+    console.error('[KIOTVIET TEST] Test connection error:', error);
+    console.error('[KIOTVIET TEST] Error stack:', error.stack);
     res.status(500).json({ 
-      message: error.message || 'Server error' 
+      message: error.message || 'Server error',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

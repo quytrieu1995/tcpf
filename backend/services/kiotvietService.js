@@ -21,25 +21,56 @@ class KiotVietService {
    * Save or update KiotViet configuration
    */
   async saveConfig(retailerCode, clientId, clientSecret) {
-    const existing = await this.getConfig();
-    
-    if (existing) {
-      const result = await db.pool.query(
-        `UPDATE kiotviet_config 
-         SET retailer_code = $1, client_id = $2, client_secret = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4
-         RETURNING *`,
-        [retailerCode, clientId, clientSecret, existing.id]
-      );
-      return result.rows[0];
-    } else {
-      const result = await db.pool.query(
-        `INSERT INTO kiotviet_config (retailer_code, client_id, client_secret, is_active)
-         VALUES ($1, $2, $3, true)
-         RETURNING *`,
-        [retailerCode, clientId, clientSecret]
-      );
-      return result.rows[0];
+    try {
+      // Clean inputs
+      const cleanRetailerCode = retailerCode.trim();
+      const cleanClientId = clientId.trim();
+      const cleanClientSecret = clientSecret.trim();
+
+      if (!cleanRetailerCode || !cleanClientId || !cleanClientSecret) {
+        throw new Error('All fields are required: retailer_code, client_id, client_secret');
+      }
+
+      const existing = await this.getConfig();
+      
+      if (existing) {
+        console.log('[KIOTVIET] Updating existing config:', { configId: existing.id });
+        const result = await db.pool.query(
+          `UPDATE kiotviet_config 
+           SET retailer_code = $1, client_id = $2, client_secret = $3, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $4
+           RETURNING *`,
+          [cleanRetailerCode, cleanClientId, cleanClientSecret, existing.id]
+        );
+        
+        if (result.rows.length === 0) {
+          throw new Error('Failed to update configuration');
+        }
+        
+        return result.rows[0];
+      } else {
+        console.log('[KIOTVIET] Creating new config');
+        const result = await db.pool.query(
+          `INSERT INTO kiotviet_config (retailer_code, client_id, client_secret, is_active)
+           VALUES ($1, $2, $3, true)
+           RETURNING *`,
+          [cleanRetailerCode, cleanClientId, cleanClientSecret]
+        );
+        
+        if (result.rows.length === 0) {
+          throw new Error('Failed to create configuration');
+        }
+        
+        return result.rows[0];
+      }
+    } catch (error) {
+      console.error('[KIOTVIET] Save config error:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        constraint: error.constraint
+      });
+      throw error;
     }
   }
 
@@ -221,13 +252,26 @@ class KiotVietService {
 
   /**
    * Make authenticated request to KiotViet API
+   * @param {string} endpoint - API endpoint
+   * @param {string} method - HTTP method
+   * @param {object} data - Request data
+   * @param {object} options - Optional: { retailerCode, accessToken } for testing without saved config
    */
-  async makeRequest(endpoint, method = 'GET', data = null) {
+  async makeRequest(endpoint, method = 'GET', data = null, options = {}) {
     try {
-      const tokenData = await this.getValidToken();
-      const accessToken = tokenData.access_token;
-      const config = await this.getConfig();
-      const retailerCode = (config?.retailer_code || this.currentRetailerCode)?.trim();
+      let accessToken, retailerCode;
+      
+      // If options provided (for testing), use them
+      if (options.retailerCode && options.accessToken) {
+        retailerCode = options.retailerCode.trim();
+        accessToken = options.accessToken;
+      } else {
+        // Otherwise, get from saved config
+        const tokenData = await this.getValidToken();
+        accessToken = tokenData.access_token;
+        const config = await this.getConfig();
+        retailerCode = (config?.retailer_code || this.currentRetailerCode)?.trim();
+      }
 
       if (!retailerCode) {
         throw new Error('Retailer code is required');
@@ -242,7 +286,8 @@ class KiotVietService {
         endpoint,
         retailer: retailerCode,
         hasToken: !!accessToken,
-        tokenLength: accessToken.length
+        tokenLength: accessToken.length,
+        isTestMode: !!options.retailerCode
       });
 
       const response = await axios({
@@ -268,29 +313,31 @@ class KiotVietService {
         headers: error.response?.headers
       });
       
-      // If token expired, try once more with new token
-      if (error.response?.status === 401) {
+      // If token expired, try once more with new token (only if not in test mode)
+      if (error.response?.status === 401 && !options.retailerCode) {
         console.log('[KIOTVIET] Token invalid, refreshing and retrying...');
         const config = await this.getConfig();
-        const newTokenData = await this.getAccessToken(
-          config.retailer_code,
-          config.client_id,
-          config.client_secret
-        );
-        
-        const retryResponse = await axios({
-          method,
-          url: `${this.baseURL}${endpoint}`,
-          headers: {
-            'Authorization': `Bearer ${newTokenData.access_token}`,
-            'Retailer': config.retailer_code.trim(),
-            'Content-Type': 'application/json'
-          },
-          data,
-          timeout: 30000
-        });
+        if (config) {
+          const newTokenData = await this.getAccessToken(
+            config.retailer_code,
+            config.client_id,
+            config.client_secret
+          );
+          
+          const retryResponse = await axios({
+            method,
+            url: `${this.baseURL}${endpoint}`,
+            headers: {
+              'Authorization': `Bearer ${newTokenData.access_token}`,
+              'Retailer': config.retailer_code.trim(),
+              'Content-Type': 'application/json'
+            },
+            data,
+            timeout: 30000
+          });
 
-        return retryResponse.data;
+          return retryResponse.data;
+        }
       }
 
       // Provide more detailed error message
@@ -971,19 +1018,38 @@ class KiotVietService {
     try {
       console.log('[KIOTVIET] Testing connection...');
       
+      // Validate inputs
+      if (!retailerCode || !clientId || !clientSecret) {
+        throw new Error('All fields are required: retailer_code, client_id, client_secret');
+      }
+      
       // Clean inputs
       const cleanRetailerCode = retailerCode.trim();
       const cleanClientId = clientId.trim();
       const cleanClientSecret = clientSecret.trim();
 
+      if (!cleanRetailerCode || !cleanClientId || !cleanClientSecret) {
+        throw new Error('All fields must not be empty after trimming');
+      }
+
       // Step 1: Get access token
       console.log('[KIOTVIET] Step 1: Getting access token...');
-      const tokenData = await this.getAccessToken(cleanRetailerCode, cleanClientId, cleanClientSecret);
+      let tokenData;
+      try {
+        tokenData = await this.getAccessToken(cleanRetailerCode, cleanClientId, cleanClientSecret);
+      } catch (tokenError) {
+        console.error('[KIOTVIET] Get token error:', {
+          message: tokenError.message,
+          response: tokenError.response?.data,
+          status: tokenError.response?.status
+        });
+        throw new Error(`Failed to get access token: ${tokenError.message || 'Invalid credentials or retailer code'}`);
+      }
       
-      if (!tokenData.access_token) {
+      if (!tokenData || !tokenData.access_token) {
         return {
           success: false,
-          message: 'Failed to get access token'
+          message: 'Failed to get access token from KiotViet'
         };
       }
 
@@ -991,20 +1057,43 @@ class KiotVietService {
       
       // Step 2: Try to get a simple endpoint to verify connection
       // Use a simple endpoint that should work with valid token
+      // Pass retailer code and token directly since config may not be saved yet
+      let apiTestSuccess = false;
       try {
-        await this.makeRequest('/api/customers?pageSize=1');
-        console.log('[KIOTVIET] Connection test successful!');
+        const testResponse = await this.makeRequest('/api/customers?pageSize=1', 'GET', null, {
+          retailerCode: cleanRetailerCode,
+          accessToken: tokenData.access_token
+        });
+        console.log('[KIOTVIET] Customers endpoint test successful');
+        apiTestSuccess = true;
       } catch (apiError) {
-        // If customers endpoint fails, try products endpoint
         console.log('[KIOTVIET] Customers endpoint failed, trying products...');
         try {
-          await this.makeRequest('/api/products?pageSize=1');
-          console.log('[KIOTVIET] Connection test successful with products endpoint!');
+          const productsResponse = await this.makeRequest('/api/products?pageSize=1', 'GET', null, {
+            retailerCode: cleanRetailerCode,
+            accessToken: tokenData.access_token
+          });
+          console.log('[KIOTVIET] Products endpoint test successful');
+          apiTestSuccess = true;
         } catch (productsError) {
-          // If both fail, but we got token, connection is partially working
-          console.log('[KIOTVIET] Both endpoints failed, but token was obtained');
-          // Still return success if we got the token
+          console.warn('[KIOTVIET] Both endpoints failed, but token was obtained:', {
+            customersError: apiError.message,
+            productsError: productsError.message,
+            customersStatus: apiError.response?.status,
+            productsStatus: productsError.response?.status
+          });
+          // If we got the token, connection is working even if endpoints fail
+          // This might be due to permissions or empty data
+          // Still consider it success if we got token (token is the main requirement)
+          apiTestSuccess = true;
         }
+      }
+      
+      if (!apiTestSuccess) {
+        return {
+          success: false,
+          message: 'Got access token but API endpoints are not accessible. Please check API permissions.'
+        };
       }
       
       return {
@@ -1015,12 +1104,28 @@ class KiotVietService {
     } catch (error) {
       console.error('[KIOTVIET] Connection test failed:', {
         message: error.message,
-        stack: error.stack
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack?.substring(0, 500)
       });
+      
+      // Provide more specific error messages
+      let errorMessage = error.message || 'Connection failed';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Invalid credentials. Please check Client ID and Client Secret.';
+      } else if (error.response?.status === 400) {
+        errorMessage = 'Invalid request. Please check Retailer Code.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'API endpoint not found. Please check Retailer Code.';
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        errorMessage = 'Cannot connect to KiotViet API. Please check your internet connection.';
+      }
       
       return {
         success: false,
-        message: error.message || 'Connection failed',
+        message: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       };
     }

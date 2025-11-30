@@ -269,8 +269,8 @@ class KiotVietService {
         // Otherwise, get from saved config
         const tokenData = await this.getValidToken();
         accessToken = tokenData.access_token;
-        const config = await this.getConfig();
-        retailerCode = (config?.retailer_code || this.currentRetailerCode)?.trim();
+        const savedConfig = await this.getConfig();
+        retailerCode = (savedConfig?.retailer_code || this.currentRetailerCode)?.trim();
       }
 
       if (!retailerCode) {
@@ -316,12 +316,12 @@ class KiotVietService {
       // If token expired, try once more with new token (only if not in test mode)
       if (error.response?.status === 401 && !options.retailerCode) {
         console.log('[KIOTVIET] Token invalid, refreshing and retrying...');
-        const config = await this.getConfig();
-        if (config) {
+        const retryConfig = await this.getConfig();
+        if (retryConfig) {
           const newTokenData = await this.getAccessToken(
-            config.retailer_code,
-            config.client_id,
-            config.client_secret
+            retryConfig.retailer_code,
+            retryConfig.client_id,
+            retryConfig.client_secret
           );
           
           const retryResponse = await axios({
@@ -329,7 +329,7 @@ class KiotVietService {
             url: `${this.baseURL}${endpoint}`,
             headers: {
               'Authorization': `Bearer ${newTokenData.access_token}`,
-              'Retailer': config.retailer_code.trim(),
+              'Retailer': retryConfig.retailer_code.trim(),
               'Content-Type': 'application/json'
             },
             data,

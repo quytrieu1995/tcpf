@@ -50,30 +50,61 @@ router.post('/', authenticate, [
 
     const { username, email, password, role, full_name, phone, is_active, permissions } = req.body;
 
+    console.log('[CREATE USER] Request received:', {
+      username,
+      email,
+      passwordLength: password?.length || 0,
+      role,
+      is_active: is_active !== false
+    });
+
     // Check if username or email already exists
     const existingUser = await db.pool.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
       [username, email]
     );
     if (existingUser.rows.length > 0) {
+      console.log('[CREATE USER] User already exists:', { username, email });
       return res.status(400).json({ message: 'Username or email already exists' });
     }
 
     // Trim and validate password
     const trimmedPassword = password.trim();
+    console.log('[CREATE USER] Password validation:', {
+      originalLength: password?.length || 0,
+      trimmedLength: trimmedPassword.length,
+      hasWhitespace: password !== trimmedPassword
+    });
+
     if (trimmedPassword.length < 6) {
+      console.log('[CREATE USER] Password too short:', { length: trimmedPassword.length });
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
     const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+    console.log('[CREATE USER] Password hashed:', {
+      hashPrefix: hashedPassword.substring(0, 20) + '...',
+      hashLength: hashedPassword.length
+    });
+
+    const finalIsActive = is_active !== false;
     const result = await db.pool.query(
       `INSERT INTO users (username, email, password, role, full_name, phone, is_active, permissions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, username, email, role, full_name, phone, is_active, permissions, created_at`,
-      [username, email, hashedPassword, role, full_name, phone, is_active !== false, JSON.stringify(permissions || [])]
+      [username, email, hashedPassword, role, full_name, phone, finalIsActive, JSON.stringify(permissions || [])]
     );
 
-    res.status(201).json(result.rows[0]);
+    const createdUser = result.rows[0];
+    console.log('[CREATE USER] User created successfully:', {
+      id: createdUser.id,
+      username: createdUser.username,
+      email: createdUser.email,
+      role: createdUser.role,
+      is_active: createdUser.is_active
+    });
+
+    res.status(201).json(createdUser);
   } catch (error) {
     console.error('Create user error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -147,10 +178,23 @@ router.put('/:id', authenticate, [
     if (password && password.trim() !== '') {
       // Validate password length
       const trimmedPassword = password.trim();
+      console.log('[UPDATE USER] Password update requested:', {
+        userId: req.params.id,
+        originalLength: password.length,
+        trimmedLength: trimmedPassword.length,
+        hasWhitespace: password !== trimmedPassword
+      });
+
       if (trimmedPassword.length < 6) {
+        console.log('[UPDATE USER] Password too short:', { length: trimmedPassword.length, userId: req.params.id });
         return res.status(400).json({ message: 'Password must be at least 6 characters' });
       }
       const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
+      console.log('[UPDATE USER] Password hashed:', {
+        userId: req.params.id,
+        hashPrefix: hashedPassword.substring(0, 20) + '...',
+        hashLength: hashedPassword.length
+      });
       paramCount++;
       query += `${paramCount > 1 ? ',' : ''} password = $${paramCount}`;
       params.push(hashedPassword);
@@ -168,10 +212,20 @@ router.put('/:id', authenticate, [
     const result = await db.pool.query(query, params);
 
     if (result.rows.length === 0) {
+      console.log('[UPDATE USER] User not found:', { userId: req.params.id });
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(result.rows[0]);
+    const updatedUser = result.rows[0];
+    console.log('[UPDATE USER] User updated successfully:', {
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      is_active: updatedUser.is_active,
+      passwordUpdated: password && password.trim() !== ''
+    });
+
+    res.json(updatedUser);
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ message: 'Server error' });

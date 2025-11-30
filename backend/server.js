@@ -175,16 +175,24 @@ db.init()
       console.log(`✅ Database connection established`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
       
-      // Start KiotViet auto sync scheduler (with error handling)
-      try {
-        const kiotvietSyncScheduler = require('./services/kiotvietSyncScheduler');
-        kiotvietSyncScheduler.start();
-        console.log(`🔄 KiotViet auto-sync started (every 1 minute)`);
-      } catch (schedulerError) {
-        console.error('⚠️  Failed to start KiotViet scheduler:', schedulerError.message);
-        console.error('⚠️  Server will continue without auto-sync');
-        // Don't crash the server if scheduler fails
-      }
+      // Start KiotViet auto sync scheduler (with error handling and delay)
+      // Delay to ensure all services are ready
+      setTimeout(() => {
+        try {
+          const kiotvietSyncScheduler = require('./services/kiotvietSyncScheduler');
+          if (kiotvietSyncScheduler && typeof kiotvietSyncScheduler.start === 'function') {
+            kiotvietSyncScheduler.start();
+            console.log(`🔄 KiotViet auto-sync started (every 1 minute)`);
+          } else {
+            console.warn('⚠️  KiotViet scheduler not available');
+          }
+        } catch (schedulerError) {
+          console.error('⚠️  Failed to start KiotViet scheduler:', schedulerError.message);
+          console.error('⚠️  Stack:', schedulerError.stack?.substring(0, 300));
+          console.error('⚠️  Server will continue without auto-sync');
+          // Don't crash the server if scheduler fails
+        }
+      }, 2000); // Wait 2 seconds after server starts
     });
   })
   .catch(err => {

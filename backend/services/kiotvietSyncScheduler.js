@@ -1,4 +1,17 @@
-const kiotvietService = require('./kiotvietService');
+// Lazy load to avoid circular dependencies or initialization issues
+let kiotvietService = null;
+
+function getKiotVietService() {
+  if (!kiotvietService) {
+    try {
+      kiotvietService = require('./kiotvietService');
+    } catch (error) {
+      console.error('[KIOTVIET SYNC] Failed to load kiotvietService:', error.message);
+      throw error;
+    }
+  }
+  return kiotvietService;
+}
 
 class KiotVietSyncScheduler {
   constructor() {
@@ -62,13 +75,16 @@ class KiotVietSyncScheduler {
     try {
       this.isRunning = true;
       
-      // Check if kiotvietService is available
-      if (!kiotvietService) {
-        console.log('[KIOTVIET SYNC] KiotViet service not available, skipping sync');
+      // Get service (lazy load)
+      let service;
+      try {
+        service = getKiotVietService();
+      } catch (error) {
+        console.log('[KIOTVIET SYNC] KiotViet service not available, skipping sync:', error.message);
         return;
       }
 
-      const config = await kiotvietService.getConfig();
+      const config = await service.getConfig();
       
       if (!config || !config.is_active) {
         console.log('[KIOTVIET SYNC] Config not found or inactive, skipping sync');
@@ -91,7 +107,7 @@ class KiotVietSyncScheduler {
       // Sync orders
       try {
         console.log('[KIOTVIET SYNC] Syncing orders...');
-        const ordersResult = await kiotvietService.syncOrders({
+        const ordersResult = await service.syncOrders({
           pageSize: 50, // Smaller batch for auto sync
           pageNumber: 1
         });
@@ -107,7 +123,7 @@ class KiotVietSyncScheduler {
       // Sync customers
       try {
         console.log('[KIOTVIET SYNC] Syncing customers...');
-        const customersResult = await kiotvietService.syncCustomers({
+        const customersResult = await service.syncCustomers({
           pageSize: 50, // Smaller batch for auto sync
           pageNumber: 1
         });

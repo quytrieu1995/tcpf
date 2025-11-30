@@ -1,13 +1,28 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const kiotvietService = require('../services/kiotvietService');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
+
+// Lazy load service to avoid initialization issues
+let kiotvietService = null;
+function getKiotVietService() {
+  if (!kiotvietService) {
+    try {
+      kiotvietService = require('../services/kiotvietService');
+    } catch (error) {
+      console.error('[KIOTVIET ROUTES] Failed to load service:', error.message);
+      console.error('[KIOTVIET ROUTES] Error stack:', error.stack?.substring(0, 300));
+      throw error;
+    }
+  }
+  return kiotvietService;
+}
 
 // Get KiotViet configuration
 router.get('/config', authenticate, async (req, res) => {
   try {
-    const config = await kiotvietService.getConfig();
+    const service = getKiotVietService();
+    const config = await service.getConfig();
     if (!config) {
       return res.json({ configured: false });
     }
@@ -47,10 +62,12 @@ router.post('/config', authenticate, [
       has_secret: !!client_secret
     });
 
+    const service = getKiotVietService();
+
     // Test connection first
     let testResult;
     try {
-      testResult = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
+      testResult = await service.testConnection(retailer_code, client_id, client_secret);
       if (!testResult.success) {
         return res.status(400).json({ 
           message: 'Connection test failed',
@@ -70,7 +87,7 @@ router.post('/config', authenticate, [
     // Save configuration
     let config;
     try {
-      config = await kiotvietService.saveConfig(retailer_code, client_id, client_secret);
+      config = await service.saveConfig(retailer_code, client_id, client_secret);
       console.log('[KIOTVIET CONFIG] Configuration saved:', { configId: config.id });
     } catch (saveError) {
       console.error('[KIOTVIET CONFIG] Save config error:', saveError);
@@ -83,7 +100,7 @@ router.post('/config', authenticate, [
     
     // Get access token and save it
     try {
-      const tokenData = await kiotvietService.getAccessToken(retailer_code, client_id, client_secret);
+      const tokenData = await service.getAccessToken(retailer_code, client_id, client_secret);
       console.log('[KIOTVIET CONFIG] Access token obtained:', {
         hasToken: !!tokenData.access_token,
         expiresAt: tokenData.expires_at
@@ -135,7 +152,8 @@ router.post('/test-connection', authenticate, [
       has_secret: !!client_secret
     });
 
-    const result = await kiotvietService.testConnection(retailer_code, client_id, client_secret);
+    const service = getKiotVietService();
+    const result = await service.testConnection(retailer_code, client_id, client_secret);
 
     if (result.success) {
       res.json({
@@ -167,7 +185,8 @@ router.post('/sync/orders', authenticate, async (req, res) => {
   try {
     const { startDate, endDate, pageSize, pageNumber } = req.body;
 
-    const result = await kiotvietService.syncOrders({
+    const service = getKiotVietService();
+    const result = await service.syncOrders({
       startDate,
       endDate,
       pageSize: pageSize || 100,
@@ -194,7 +213,8 @@ router.post('/sync/customers', authenticate, async (req, res) => {
   try {
     const { pageSize, pageNumber } = req.body;
 
-    const result = await kiotvietService.syncCustomers({
+    const service = getKiotVietService();
+    const result = await service.syncCustomers({
       pageSize: pageSize || 100,
       pageNumber: pageNumber || 1
     });

@@ -13,7 +13,8 @@ import {
   ShoppingCart,
   Users,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Package
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -156,8 +157,14 @@ const KiotViet = () => {
       // Show detailed result
       const { synced, failed, total, errors } = response.data
       
+      const typeLabels = {
+        orders: 'Đơn hàng',
+        customers: 'Khách hàng',
+        products: 'Sản phẩm'
+      }
+      
       if (synced > 0) {
-        toast.success(`${type === 'orders' ? 'Đơn hàng' : 'Khách hàng'}: ${synced} bản ghi đã được đồng bộ thành công!`)
+        toast.success(`${typeLabels[type] || type}: ${synced} bản ghi đã được đồng bộ thành công!`)
       } else if (total === 0) {
         toast.info('Không có dữ liệu mới để đồng bộ')
       } else {
@@ -176,7 +183,12 @@ const KiotViet = () => {
       fetchSyncLogs()
     } catch (error) {
       console.error(`Error syncing ${type}:`, error)
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Có lỗi xảy ra khi đồng bộ ${type === 'orders' ? 'đơn hàng' : 'khách hàng'}`
+      const typeLabels = {
+        orders: 'đơn hàng',
+        customers: 'khách hàng',
+        products: 'sản phẩm'
+      }
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || `Có lỗi xảy ra khi đồng bộ ${typeLabels[type] || type}`
       toast.error(errorMessage)
     } finally {
       setSyncing(false)
@@ -208,7 +220,7 @@ const KiotViet = () => {
             Tích hợp KiotViet
           </h1>
           <p className="text-gray-600 text-sm sm:text-base">
-            Đồng bộ đơn hàng và khách hàng từ KiotViet
+            Đồng bộ đơn hàng, khách hàng và sản phẩm từ KiotViet
           </p>
         </div>
         <Button
@@ -368,6 +380,35 @@ const KiotViet = () => {
                 <>
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Đồng bộ khách hàng
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-6 card-hover">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl shadow-lg">
+                <Package className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Đồng bộ sản phẩm</h3>
+                <p className="text-sm text-gray-600">Lấy sản phẩm từ KiotViet</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => handleSync('products')}
+              disabled={syncing}
+              className="w-full"
+            >
+              {syncing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Đang đồng bộ...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Đồng bộ sản phẩm
                 </>
               )}
             </Button>

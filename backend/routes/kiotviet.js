@@ -295,6 +295,59 @@ router.post('/sync/customers', authenticate, async (req, res) => {
   }
 });
 
+// Sync products from KiotViet
+router.post('/sync/products', authenticate, async (req, res) => {
+  try {
+    const { pageSize, pageNumber } = req.body;
+
+    // Get service with error handling
+    let service;
+    try {
+      service = getKiotVietService();
+    } catch (serviceError) {
+      console.error('[KIOTVIET SYNC PRODUCTS] Failed to load service:', serviceError);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to initialize KiotViet service',
+        error: serviceError.message,
+        details: process.env.NODE_ENV === 'development' ? serviceError.stack : undefined
+      });
+    }
+
+    let result;
+    try {
+      result = await service.syncProducts({
+        pageSize: pageSize || 100,
+        pageNumber: pageNumber || 1
+      });
+    } catch (syncError) {
+      console.error('[KIOTVIET SYNC PRODUCTS] Sync error:', syncError);
+      console.error('[KIOTVIET SYNC PRODUCTS] Error stack:', syncError.stack);
+      return res.status(500).json({ 
+        success: false,
+        message: syncError.message || 'Failed to sync products',
+        error: syncError.message,
+        details: process.env.NODE_ENV === 'development' ? syncError.stack : undefined
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Products synced successfully',
+      ...result
+    });
+  } catch (error) {
+    console.error('[KIOTVIET SYNC PRODUCTS] Unexpected error:', error);
+    console.error('[KIOTVIET SYNC PRODUCTS] Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Failed to sync products',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // Get auto-sync status
 router.get('/auto-sync/status', authenticate, async (req, res) => {
   try {

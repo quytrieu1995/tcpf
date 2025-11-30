@@ -105,10 +105,17 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS kiotviet_data JSONB
     `);
 
+    await pool.query(`
+      ALTER TABLE products 
+      ADD COLUMN IF NOT EXISTS kiotviet_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS kiotviet_data JSONB
+    `);
+
     // Create indexes for better performance
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_orders_kiotviet_id ON orders(kiotviet_id);
       CREATE INDEX IF NOT EXISTS idx_customers_kiotviet_id ON customers(kiotviet_id);
+      CREATE INDEX IF NOT EXISTS idx_products_kiotviet_id ON products(kiotviet_id);
     `);
 
     // Create tables if they don't exist

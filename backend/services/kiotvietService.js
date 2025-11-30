@@ -853,6 +853,247 @@ class KiotVietService {
   }
 
   /**
+   * Sync products from KiotViet
+   */
+  async syncProducts(options = {}) {
+    const { pageSize = 100, pageNumber = 1 } = options;
+    
+    try {
+      console.log('[KIOTVIET] Starting sync products with options:', { pageSize, pageNumber });
+      
+      // Check config first
+      const config = await this.getConfig();
+      if (!config || !config.is_active) {
+        throw new Error('KiotViet configuration not found or inactive');
+      }
+      if (!config.access_token && !config.retailer_code) {
+        throw new Error('KiotViet not configured. Please configure first.');
+      }
+
+      const endpoint = `/api/products?pageSize=${pageSize}&currentItem=${(pageNumber - 1) * pageSize}`;
+      
+      console.log('[KIOTVIET] Syncing products from endpoint:', endpoint);
+
+      let response;
+      try {
+        response = await this.makeRequest(endpoint);
+      } catch (error) {
+        // If 503, try with smaller page size
+        if (error.response?.status === 503) {
+          console.log('[KIOTVIET] 503 error, retrying with smaller page size...');
+          const smallEndpoint = `/api/products?pageSize=50&currentItem=${(pageNumber - 1) * 50}`;
+          response = await this.makeRequest(smallEndpoint);
+        } else {
+          throw error;
+        }
+      }
+
+      // Handle different response formats
+      let products = [];
+      if (Array.isArray(response.data)) {
+        products = response.data;
+      } else if (Array.isArray(response)) {
+        products = response;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        products = response.data.data;
+      } else if (response.data && response.data.items) {
+        products = response.data.items;
+      } else if (response.data && Array.isArray(response.data)) {
+        products = response.data;
+      } else if (response && typeof response === 'object') {
+        // Try to find any array property
+        for (const key in response) {
+          if (Array.isArray(response[key])) {
+            products = response[key];
+            break;
+          }
+        }
+      }
+
+      if (!Array.isArray(products)) {
+        console.warn('[KIOTVIET] Unexpected response format:', JSON.stringify(response).substring(0, 200));
+        products = [];
+      }
+
+      console.log(`[KIOTVIET] Found ${products.length} products to sync`);
+
+      let synced = 0;
+      let failed = 0;
+      const errors = [];
+
+      for (const kvProduct of products) {
+        try {
+          if (!kvProduct || !kvProduct.id) {
+            console.warn('[KIOTVIET] Skipping invalid product:', JSON.stringify(kvProduct).substring(0, 100));
+            failed++;
+            continue;
+          }
+          await this.syncProductToDatabase(kvProduct);
+          synced++;
+        } catch (error) {
+          failed++;
+          const errorInfo = {
+            product_id: kvProduct?.id || 'unknown',
+            product_code: kvProduct?.code || kvProduct?.productCode || 'unknown',
+            error: error.message || 'Unknown error'
+          };
+          errors.push(errorInfo);
+          console.error(`[KIOTVIET] Error syncing product ${errorInfo.product_id}:`, error.message);
+          
+          // Log detailed error for debugging
+          if (error.stack) {
+            console.error(`[KIOTVIET] Error stack:`, error.stack.substring(0, 500));
+          }
+        }
+      }
+
+      await this.logSync('products', synced > 0 ? 'success' : 'failed', {
+        synced,
+        failed,
+        errors: errors.slice(0, 10)
+      });
+
+      // Update last sync time (reuse config from beginning of method)
+      if (config) {
+        await db.pool.query(
+          'UPDATE kiotviet_config SET last_sync_at = CURRENT_TIMESTAMP WHERE id = $1',
+          [config.id]
+        );
+      }
+
+      const result = {
+        success: synced > 0 || products.length === 0, // Success if we synced something or there was nothing to sync
+        synced,
+        failed,
+        total: products.length,
+        errors: errors.slice(0, 20) // Show more errors
+      };
+
+      // Log summary
+      console.log(`[KIOTVIET] Sync products completed: ${synced} synced, ${failed} failed out of ${products.length} total`);
+
+      return result;
+    } catch (error) {
+      console.error('[KIOTVIET] Sync products failed:', error);
+      await this.logSync('products', 'failed', {
+        error: error.message,
+        stack: error.stack?.substring(0, 500)
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Sync single product to database
+   */
+  async syncProductToDatabase(kvProduct) {
+    if (!kvProduct || !kvProduct.id) {
+      throw new Error('Invalid product data: missing id');
+    }
+
+    try {
+      // Map KiotViet product to our product format
+      const productData = {
+        kiotviet_id: kvProduct.id?.toString(),
+        name: (kvProduct.name || kvProduct.productName || `Sản phẩm ${kvProduct.id}`).substring(0, 255),
+        description: (kvProduct.description || kvProduct.fullName || '').substring(0, 2000),
+        price: parseFloat(kvProduct.basePrice || kvProduct.price || kvProduct.retailPrice || 0),
+        stock: parseInt(kvProduct.inventory || kvProduct.stock || kvProduct.quantity || 0),
+        category: (kvProduct.categoryName || kvProduct.category?.name || '').substring(0, 100),
+        image_url: (kvProduct.images?.[0] || kvProduct.image || kvProduct.imageUrl || '').substring(0, 500),
+        kiotviet_data: JSON.stringify(kvProduct)
+      };
+
+      // Validate required fields
+      if (!productData.name || productData.name.trim() === '') {
+        productData.name = `Sản phẩm ${productData.kiotviet_id || 'KV'}`;
+      }
+
+      // Check if product exists
+      const existing = await db.pool.query(
+        'SELECT id FROM products WHERE kiotviet_id = $1',
+        [productData.kiotviet_id]
+      );
+
+      if (existing.rows.length > 0) {
+        // Update existing product
+        await db.pool.query(
+          `UPDATE products 
+           SET name = $1, description = $2, price = $3, stock = $4, 
+               category = COALESCE(NULLIF($5, ''), category), 
+               image_url = COALESCE(NULLIF($6, ''), image_url),
+               kiotviet_data = $7, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $8`,
+          [
+            productData.name,
+            productData.description || null,
+            productData.price,
+            productData.stock,
+            productData.category || null,
+            productData.image_url || null,
+            productData.kiotviet_data,
+            existing.rows[0].id
+          ]
+        );
+      } else {
+        // Create new product - handle duplicate manually
+        try {
+          await db.pool.query(
+            `INSERT INTO products (kiotviet_id, name, description, price, stock, category, image_url, kiotviet_data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              productData.kiotviet_id,
+              productData.name,
+              productData.description || null,
+              productData.price,
+              productData.stock,
+              productData.category || null,
+              productData.image_url || null,
+              productData.kiotviet_data
+            ]
+          );
+        } catch (insertError) {
+          // If duplicate, try to update instead
+          if (insertError.code === '23505' || insertError.message.includes('duplicate') || insertError.message.includes('unique')) {
+            console.log(`[KIOTVIET] Product ${productData.kiotviet_id} already exists, updating instead...`);
+            const existingProduct = await db.pool.query(
+              'SELECT id FROM products WHERE kiotviet_id = $1',
+              [productData.kiotviet_id]
+            );
+            if (existingProduct.rows.length > 0) {
+              await db.pool.query(
+                `UPDATE products 
+                 SET name = $1, description = $2, price = $3, stock = $4, 
+                     category = COALESCE(NULLIF($5, ''), category), 
+                     image_url = COALESCE(NULLIF($6, ''), image_url),
+                     kiotviet_data = $7, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $8`,
+                [
+                  productData.name,
+                  productData.description || null,
+                  productData.price,
+                  productData.stock,
+                  productData.category || null,
+                  productData.image_url || null,
+                  productData.kiotviet_data,
+                  existingProduct.rows[0].id
+                ]
+              );
+            } else {
+              throw insertError;
+            }
+          } else {
+            throw insertError;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[KIOTVIET] Error syncing product to database:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Sync single customer to database
    */
   async syncCustomerToDatabase(kvCustomer) {

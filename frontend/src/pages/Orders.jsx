@@ -265,19 +265,17 @@ const Orders = () => {
   }
 
   const getSalesChannelBadge = (channel) => {
-    if (!channel) return null
+    if (!channel) return <span className="text-gray-400 text-xs">-</span>
     const channelConfig = {
-      'shopee': { icon: ShoppingCart, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Shopee' },
-      'tiktok': { icon: ShoppingCart, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'TikTok' },
-      'lazada': { icon: ShoppingCart, color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Lazada' },
-      'tiki': { icon: ShoppingCart, color: 'bg-red-100 text-red-800 border-red-200', label: 'Tiki' },
-      'offline': { icon: ShoppingCart, color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Offline' }
+      'tiktok': { color: 'bg-black text-white border-black', label: 'TikTok' },
+      'shopee': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Shopee' },
+      'lazada': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Lazada' },
+      'facebook': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Facebook' },
+      'other': { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Khác' }
     }
-    const config = channelConfig[channel.toLowerCase()] || { icon: ShoppingCart, color: 'bg-gray-100 text-gray-800 border-gray-200', label: channel }
-    const Icon = config.icon
+    const config = channelConfig[channel.toLowerCase()] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: channel }
     return (
       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
-        <Icon className="w-3 h-3" />
         {config.label}
       </span>
     )
@@ -871,14 +869,20 @@ const Orders = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Kênh bán
+                Kênh bán hàng
               </label>
-              <Input
-                type="text"
+              <select
                 value={editFormData.sales_channel || ''}
                 onChange={(e) => setEditFormData({ ...editFormData, sales_channel: e.target.value })}
-                placeholder="online, offline, etc."
-              />
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Chọn kênh bán hàng</option>
+                <option value="tiktok">TikTok</option>
+                <option value="shopee">Shopee</option>
+                <option value="lazada">Lazada</option>
+                <option value="facebook">Facebook</option>
+                <option value="other">Khác</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

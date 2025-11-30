@@ -11,7 +11,7 @@ router.get('/', authenticate, async (req, res) => {
     const { status, carrier_id, page = 1, limit = 20 } = req.query;
     let query = `
       SELECT s.*, 
-             o.order_number, o.customer_id,
+             o.order_number, o.customer_id, o.sales_channel as order_sales_channel,
              c.name as customer_name, c.phone as customer_phone,
              sm.name as carrier_name
       FROM shipments s
@@ -59,7 +59,7 @@ router.get('/:id', authenticate, async (req, res) => {
   try {
     const result = await db.pool.query(
       `SELECT s.*, 
-              o.order_number, o.customer_id, o.total_amount,
+              o.order_number, o.customer_id, o.total_amount, o.sales_channel as order_sales_channel,
               c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
               sm.name as carrier_name, sm.description as carrier_description
        FROM shipments s
@@ -93,11 +93,19 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { order_id, carrier_id, tracking_number, notes, estimated_delivery_date } = req.body;
+    const { order_id, carrier_id, tracking_number, notes, estimated_delivery_date, sales_channel } = req.body;
     const user = req.user;
     const client = await db.pool.connect();
 
     try {
+      // Get sales_channel from order if not provided
+      let finalSalesChannel = sales_channel;
+      if (!finalSalesChannel && order_id) {
+        const orderResult = await db.pool.query('SELECT sales_channel FROM orders WHERE id = $1', [order_id]);
+        if (orderResult.rows.length > 0) {
+          finalSalesChannel = orderResult.rows[0].sales_channel;
+        }
+      }
       await client.query('BEGIN');
 
       // Check if order exists
@@ -109,9 +117,9 @@ router.post('/', authenticate, [
 
       // Create shipment
       const shipmentResult = await client.query(
-        `INSERT INTO shipments (order_id, carrier_id, tracking_number, status, notes, estimated_delivery_date, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [order_id, carrier_id, tracking_number, 'pending', notes, estimated_delivery_date, user.id]
+        `INSERT INTO shipments (order_id, carrier_id, tracking_number, status, sales_channel, notes, estimated_delivery_date, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [order_id, carrier_id, tracking_number, 'pending', finalSalesChannel, notes, estimated_delivery_date, user.id]
       );
 
       // Update order with tracking number

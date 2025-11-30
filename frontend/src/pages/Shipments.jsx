@@ -191,6 +191,27 @@ const Shipments = () => {
       )
     },
     {
+      key: 'sales_channel',
+      header: 'Kênh bán',
+      render: (row) => {
+        const channel = row.sales_channel || row.order_sales_channel
+        if (!channel) return <span className="text-gray-400 text-xs">-</span>
+        const channelConfig = {
+          'tiktok': { color: 'bg-black text-white border-black', label: 'TikTok' },
+          'shopee': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Shopee' },
+          'lazada': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Lazada' },
+          'facebook': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Facebook' },
+          'other': { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Khác' }
+        }
+        const config = channelConfig[channel.toLowerCase()] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: channel }
+        return (
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+            {config.label}
+          </span>
+        )
+      }
+    },
+    {
       key: 'status',
       header: 'Trạng thái',
       render: (row) => (

@@ -157,11 +157,32 @@ const init = async () => {
         total_amount DECIMAL(10, 2) NOT NULL,
         status VARCHAR(20) DEFAULT 'pending',
         payment_method VARCHAR(50),
+        sales_channel VARCHAR(50),
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add sales_channel column if it doesn't exist (for existing tables)
+    try {
+      await pool.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'orders' 
+            AND column_name = 'sales_channel'
+          ) THEN
+            ALTER TABLE orders 
+            ADD COLUMN sales_channel VARCHAR(50);
+            RAISE NOTICE 'Added sales_channel column to orders';
+          END IF;
+        END $$;
+      `);
+    } catch (error) {
+      console.warn('⚠️  Could not add sales_channel to orders:', error.message);
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -298,6 +319,7 @@ const init = async () => {
         carrier_id INTEGER REFERENCES shipping_methods(id) ON DELETE SET NULL,
         tracking_number VARCHAR(100) UNIQUE NOT NULL,
         status VARCHAR(20) DEFAULT 'pending',
+        sales_channel VARCHAR(50),
         notes TEXT,
         estimated_delivery_date DATE,
         delivered_at TIMESTAMP,
@@ -310,6 +332,26 @@ const init = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add sales_channel column to shipments if it doesn't exist
+    try {
+      await pool.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'shipments' 
+            AND column_name = 'sales_channel'
+          ) THEN
+            ALTER TABLE shipments 
+            ADD COLUMN sales_channel VARCHAR(50);
+            RAISE NOTICE 'Added sales_channel column to shipments';
+          END IF;
+        END $$;
+      `);
+    } catch (error) {
+      console.warn('⚠️  Could not add sales_channel to shipments:', error.message);
+    }
 
     // Update orders table
     await pool.query(`

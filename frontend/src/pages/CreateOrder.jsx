@@ -26,6 +26,7 @@ const CreateOrder = () => {
   const [formData, setFormData] = useState({
     customer_id: '',
     payment_method: 'cash',
+    sales_channel: '',
     shipping_method_id: '',
     shipping_address: '',
     shipping_phone: '',
@@ -255,6 +256,7 @@ const CreateOrder = () => {
         customer_id: formData.customer_id && formData.customer_id !== '' ? parseInt(formData.customer_id) : null,
         shipping_method_id: formData.shipping_method_id && formData.shipping_method_id !== '' ? parseInt(formData.shipping_method_id) : null,
         payment_method: formData.payment_method || 'cash',
+        sales_channel: formData.sales_channel || null,
         shipping_address: formData.shipping_address || null,
         shipping_phone: formData.shipping_phone || null,
         promotion_code: formData.promotion_code || null,
@@ -591,6 +593,24 @@ const CreateOrder = () => {
                 <option value="bank_transfer">Chuyển khoản</option>
                 <option value="credit">Trả chậm</option>
                 <option value="card">Thẻ</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kênh bán hàng
+              </label>
+              <select
+                value={formData.sales_channel}
+                onChange={(e) => setFormData({ ...formData, sales_channel: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Chọn kênh bán hàng</option>
+                <option value="tiktok">TikTok</option>
+                <option value="shopee">Shopee</option>
+                <option value="lazada">Lazada</option>
+                <option value="facebook">Facebook</option>
+                <option value="other">Khác</option>
               </select>
             </div>
 

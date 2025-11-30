@@ -48,8 +48,31 @@ const Login = () => {
         setError(result.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.')
       }
     } catch (err) {
-      setError('Có lỗi xảy ra. Vui lòng thử lại sau.')
       console.error('Login error:', err)
+      
+      // Handle different error types
+      if (err.response) {
+        // Server responded with error
+        if (err.response.status === 503) {
+          setError('Không thể kết nối đến cơ sở dữ liệu. Vui lòng thử lại sau.')
+        } else if (err.response.status === 401) {
+          setError('Tên đăng nhập hoặc mật khẩu không đúng.')
+        } else {
+          setError(err.response.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.')
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        if (err.code === 'ECONNABORTED') {
+          setError('Kết nối quá thời gian chờ. Vui lòng kiểm tra kết nối mạng và thử lại.')
+        } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+          setError('Không thể kết nối đến máy chủ. Vui lòng kiểm tra:\n1. Máy chủ backend đang chạy\n2. Kết nối mạng của bạn\n3. Cấu hình API URL')
+        } else {
+          setError('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.')
+        }
+      } else {
+        // Something else happened
+        setError('Có lỗi xảy ra. Vui lòng thử lại sau.')
+      }
     } finally {
       setLoading(false)
     }

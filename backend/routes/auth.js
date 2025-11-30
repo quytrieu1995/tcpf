@@ -94,8 +94,25 @@ router.post('/login', [
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[LOGIN] Login error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail
+    });
+    
+    // Check if it's a database connection error
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.message.includes('connect')) {
+      return res.status(503).json({ 
+        message: 'Database connection failed. Please try again later.',
+        error: 'DATABASE_ERROR'
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

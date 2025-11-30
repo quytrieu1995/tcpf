@@ -45,9 +45,23 @@ api.interceptors.response.use(
     
     // Handle network errors
     if (!error.response) {
-      console.error('Network error:', error.message);
+      console.error('Network error:', {
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method
+        }
+      });
+      
       if (error.code === 'ECONNABORTED') {
-        console.error('Request timeout - Backend may not be running');
+        console.error('Request timeout - Backend may not be running or slow');
+      } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+        console.error('Cannot connect to backend server. Please check:');
+        console.error('1. Backend server is running');
+        console.error('2. Backend URL is correct:', error.config?.baseURL);
+        console.error('3. CORS is configured correctly');
       }
     }
     

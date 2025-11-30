@@ -36,9 +36,29 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true }
     } catch (error) {
+      console.error('Login error in AuthContext:', error)
+      
+      // Handle different error types
+      let errorMessage = 'Đăng nhập thất bại'
+      
+      if (error.response) {
+        // Server responded with error
+        errorMessage = error.response.data?.message || errorMessage
+      } else if (error.request) {
+        // Request was made but no response received
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Kết nối quá thời gian chờ. Vui lòng kiểm tra kết nối mạng.'
+        } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra máy chủ backend có đang chạy không.'
+        } else {
+          errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.'
+        }
+      }
+      
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Đăng nhập thất bại' 
+        message: errorMessage,
+        error: error
       }
     }
   }

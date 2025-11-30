@@ -145,6 +145,11 @@ db.init()
       console.log(`✅ Server running on port ${PORT}`);
       console.log(`✅ Database connection established`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+      
+      // Start KiotViet auto sync scheduler
+      const kiotvietSyncScheduler = require('./services/kiotvietSyncScheduler');
+      kiotvietSyncScheduler.start();
+      console.log(`🔄 KiotViet auto-sync started (every 1 minute)`);
     });
   })
   .catch(err => {

@@ -152,6 +152,42 @@ router.post('/sync/customers', authenticate, async (req, res) => {
   }
 });
 
+// Get auto-sync status
+router.get('/auto-sync/status', authenticate, async (req, res) => {
+  try {
+    const kiotvietSyncScheduler = require('../services/kiotvietSyncScheduler');
+    const status = kiotvietSyncScheduler.getStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Get auto-sync status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Start auto-sync
+router.post('/auto-sync/start', authenticate, async (req, res) => {
+  try {
+    const kiotvietSyncScheduler = require('../services/kiotvietSyncScheduler');
+    kiotvietSyncScheduler.start();
+    res.json({ message: 'Auto-sync started', status: kiotvietSyncScheduler.getStatus() });
+  } catch (error) {
+    console.error('Start auto-sync error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Stop auto-sync
+router.post('/auto-sync/stop', authenticate, async (req, res) => {
+  try {
+    const kiotvietSyncScheduler = require('../services/kiotvietSyncScheduler');
+    kiotvietSyncScheduler.stop();
+    res.json({ message: 'Auto-sync stopped', status: kiotvietSyncScheduler.getStatus() });
+  } catch (error) {
+    console.error('Stop auto-sync error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get sync logs
 router.get('/sync-logs', authenticate, async (req, res) => {
   try {

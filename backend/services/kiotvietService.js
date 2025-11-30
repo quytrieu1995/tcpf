@@ -308,13 +308,52 @@ class KiotVietService {
     const { startDate, endDate, pageSize = 100, pageNumber = 1 } = options;
     
     try {
-      let endpoint = '/api/orders?';
-      if (startDate) endpoint += `fromDate=${startDate}&`;
-      if (endDate) endpoint += `toDate=${endDate}&`;
-      endpoint += `pageSize=${pageSize}&currentItem=${(pageNumber - 1) * pageSize}`;
+      // Try different endpoint formats
+      let endpoint = '/api/orders';
+      const params = [];
+      
+      if (startDate) params.push(`fromDate=${encodeURIComponent(startDate)}`);
+      if (endDate) params.push(`toDate=${encodeURIComponent(endDate)}`);
+      params.push(`pageSize=${pageSize}`);
+      params.push(`currentItem=${(pageNumber - 1) * pageSize}`);
+      
+      if (params.length > 0) {
+        endpoint += '?' + params.join('&');
+      }
 
-      const response = await this.makeRequest(endpoint);
-      const orders = response.data || [];
+      console.log('[KIOTVIET] Syncing orders from endpoint:', endpoint);
+
+      let response;
+      try {
+        response = await this.makeRequest(endpoint);
+      } catch (error) {
+        // If 503 or endpoint not found, try alternative endpoint
+        if (error.response?.status === 503 || error.response?.status === 404) {
+          console.log('[KIOTVIET] Primary endpoint failed, trying alternative...');
+          endpoint = '/api/invoices'; // KiotViet sometimes uses invoices instead of orders
+          try {
+            response = await this.makeRequest(endpoint + (params.length > 0 ? '?' + params.join('&') : ''));
+          } catch (altError) {
+            throw new Error(`Failed to sync orders: ${error.message || 'API endpoint not available'}`);
+          }
+        } else {
+          throw error;
+        }
+      }
+
+      // Handle different response formats
+      let orders = [];
+      if (Array.isArray(response.data)) {
+        orders = response.data;
+      } else if (Array.isArray(response)) {
+        orders = response;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        orders = response.data.data;
+      } else if (response.data && response.data.items) {
+        orders = response.data.items;
+      }
+
+      console.log(`[KIOTVIET] Found ${orders.length} orders to sync`);
 
       let synced = 0;
       let failed = 0;
@@ -485,8 +524,36 @@ class KiotVietService {
     
     try {
       const endpoint = `/api/customers?pageSize=${pageSize}&currentItem=${(pageNumber - 1) * pageSize}`;
-      const response = await this.makeRequest(endpoint);
-      const customers = response.data || [];
+      
+      console.log('[KIOTVIET] Syncing customers from endpoint:', endpoint);
+
+      let response;
+      try {
+        response = await this.makeRequest(endpoint);
+      } catch (error) {
+        // If 503, try with smaller page size
+        if (error.response?.status === 503) {
+          console.log('[KIOTVIET] 503 error, retrying with smaller page size...');
+          const smallEndpoint = `/api/customers?pageSize=50&currentItem=${(pageNumber - 1) * 50}`;
+          response = await this.makeRequest(smallEndpoint);
+        } else {
+          throw error;
+        }
+      }
+
+      // Handle different response formats
+      let customers = [];
+      if (Array.isArray(response.data)) {
+        customers = response.data;
+      } else if (Array.isArray(response)) {
+        customers = response;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        customers = response.data.data;
+      } else if (response.data && response.data.items) {
+        customers = response.data.items;
+      }
+
+      console.log(`[KIOTVIET] Found ${customers.length} customers to sync`);
 
       let synced = 0;
       let failed = 0;

@@ -32,10 +32,19 @@ const KiotViet = () => {
   const [testResult, setTestResult] = useState(null)
   const [syncLogs, setSyncLogs] = useState([])
   const [loadingLogs, setLoadingLogs] = useState(false)
+  const [autoSyncStatus, setAutoSyncStatus] = useState(null)
 
   useEffect(() => {
     fetchConfig()
     fetchSyncLogs()
+    fetchAutoSyncStatus()
+    
+    // Poll auto-sync status every 5 seconds
+    const interval = setInterval(() => {
+      fetchAutoSyncStatus()
+    }, 5000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   const fetchConfig = async () => {
@@ -59,6 +68,31 @@ const KiotViet = () => {
       console.error('Error fetching sync logs:', error)
     } finally {
       setLoadingLogs(false)
+    }
+  }
+
+  const fetchAutoSyncStatus = async () => {
+    try {
+      const response = await api.get('/kiotviet/auto-sync/status')
+      setAutoSyncStatus(response.data)
+    } catch (error) {
+      console.error('Error fetching auto-sync status:', error)
+    }
+  }
+
+  const handleToggleAutoSync = async () => {
+    try {
+      if (autoSyncStatus?.isRunning) {
+        await api.post('/kiotviet/auto-sync/stop')
+        toast.success('Đã tắt tự động đồng bộ')
+      } else {
+        await api.post('/kiotviet/auto-sync/start')
+        toast.success('Đã bật tự động đồng bộ (mỗi 1 phút)')
+      }
+      fetchAutoSyncStatus()
+    } catch (error) {
+      console.error('Error toggling auto-sync:', error)
+      toast.error('Có lỗi xảy ra khi thay đổi trạng thái tự động đồng bộ')
     }
   }
 
@@ -210,6 +244,32 @@ const KiotViet = () => {
                 <p className="font-medium text-gray-900">
                   {format(new Date(config.token_expires_at), 'dd/MM/yyyy HH:mm:ss')}
                 </p>
+              </div>
+            )}
+
+            {/* Auto-sync status */}
+            {autoSyncStatus && (
+              <div className="pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Tự động đồng bộ:</p>
+                    <p className={`font-medium ${autoSyncStatus.isRunning ? 'text-green-600' : 'text-gray-500'}`}>
+                      {autoSyncStatus.isRunning ? 'Đang chạy (mỗi 1 phút)' : 'Đã tắt'}
+                    </p>
+                    {autoSyncStatus.lastSyncTime && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Lần đồng bộ cuối: {format(new Date(autoSyncStatus.lastSyncTime), 'HH:mm:ss')}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant={autoSyncStatus.isRunning ? 'danger' : 'primary'}
+                    size="sm"
+                    onClick={handleToggleAutoSync}
+                  >
+                    {autoSyncStatus.isRunning ? 'Tắt' : 'Bật'}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

@@ -152,27 +152,61 @@ router.post('/test-connection', authenticate, [
       has_secret: !!client_secret
     });
 
-    const service = getKiotVietService();
-    const result = await service.testConnection(retailer_code, client_id, client_secret);
+    // Get service with error handling
+    let service;
+    try {
+      service = getKiotVietService();
+    } catch (serviceError) {
+      console.error('[KIOTVIET TEST] Failed to load service:', serviceError);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Failed to initialize KiotViet service',
+        error: serviceError.message,
+        details: process.env.NODE_ENV === 'development' ? serviceError.stack : undefined
+      });
+    }
 
+    // Call testConnection - it should always return a result object, not throw
+    let result;
+    try {
+      result = await service.testConnection(retailer_code, client_id, client_secret);
+      
+      // Ensure result is an object with success property
+      if (!result || typeof result !== 'object') {
+        throw new Error('Invalid response from testConnection');
+      }
+    } catch (testError) {
+      // If testConnection throws (shouldn't happen, but handle it)
+      console.error('[KIOTVIET TEST] testConnection threw error:', testError);
+      return res.status(500).json({
+        success: false,
+        message: testError.message || 'Connection test failed',
+        error: testError.message,
+        details: process.env.NODE_ENV === 'development' ? testError.stack : undefined
+      });
+    }
+
+    // Return result based on success status
     if (result.success) {
       res.json({
         success: true,
-        message: result.message,
+        message: result.message || 'Connection successful',
         token_expires_at: result.token_expires_at
       });
     } else {
-      res.status(400).json({
+      // Return 200 with success: false for connection failures (not server errors)
+      res.status(200).json({
         success: false,
-        message: result.message,
+        message: result.message || 'Connection test failed',
         error: result.message,
         details: result.details
       });
     }
   } catch (error) {
-    console.error('[KIOTVIET TEST] Test connection error:', error);
+    console.error('[KIOTVIET TEST] Unexpected error:', error);
     console.error('[KIOTVIET TEST] Error stack:', error.stack);
     res.status(500).json({ 
+      success: false,
       message: error.message || 'Server error',
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined

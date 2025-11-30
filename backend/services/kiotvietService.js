@@ -1020,16 +1020,22 @@ class KiotVietService {
       
       // Validate inputs
       if (!retailerCode || !clientId || !clientSecret) {
-        throw new Error('All fields are required: retailer_code, client_id, client_secret');
+        return {
+          success: false,
+          message: 'All fields are required: retailer_code, client_id, client_secret'
+        };
       }
       
       // Clean inputs
-      const cleanRetailerCode = retailerCode.trim();
-      const cleanClientId = clientId.trim();
-      const cleanClientSecret = clientSecret.trim();
+      const cleanRetailerCode = (retailerCode || '').toString().trim();
+      const cleanClientId = (clientId || '').toString().trim();
+      const cleanClientSecret = (clientSecret || '').toString().trim();
 
       if (!cleanRetailerCode || !cleanClientId || !cleanClientSecret) {
-        throw new Error('All fields must not be empty after trimming');
+        return {
+          success: false,
+          message: 'All fields must not be empty after trimming'
+        };
       }
 
       // Step 1: Get access token
@@ -1041,9 +1047,27 @@ class KiotVietService {
         console.error('[KIOTVIET] Get token error:', {
           message: tokenError.message,
           response: tokenError.response?.data,
-          status: tokenError.response?.status
+          status: tokenError.response?.status,
+          code: tokenError.code,
+          stack: tokenError.stack?.substring(0, 300)
         });
-        throw new Error(`Failed to get access token: ${tokenError.message || 'Invalid credentials or retailer code'}`);
+        
+        // Return error result instead of throwing
+        let errorMessage = tokenError.message || 'Invalid credentials or retailer code';
+        
+        if (tokenError.response?.status === 401) {
+          errorMessage = 'Invalid credentials. Please check Client ID and Client Secret.';
+        } else if (tokenError.response?.status === 400) {
+          errorMessage = 'Invalid request. Please check Retailer Code.';
+        } else if (tokenError.code === 'ECONNREFUSED' || tokenError.code === 'ETIMEDOUT') {
+          errorMessage = 'Cannot connect to KiotViet API. Please check your internet connection.';
+        }
+        
+        return {
+          success: false,
+          message: `Failed to get access token: ${errorMessage}`,
+          details: process.env.NODE_ENV === 'development' ? tokenError.stack?.substring(0, 500) : undefined
+        };
       }
       
       if (!tokenData || !tokenData.access_token) {

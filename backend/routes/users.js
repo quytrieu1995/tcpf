@@ -235,20 +235,86 @@ router.put('/:id', authenticate, [
 // Delete user
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    // Prevent deleting admin users
-    const user = await db.pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
-    if (user.rows.length === 0) {
+    const userId = req.params.id;
+    console.log('[DELETE USER] Request received:', { userId, requestedBy: req.user.id });
+
+    // Get user info
+    const userResult = await db.pool.query('SELECT id, username, role FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      console.log('[DELETE USER] User not found:', { userId });
       return res.status(404).json({ message: 'User not found' });
     }
-    if (user.rows[0].role === 'admin') {
+
+    const user = userResult.rows[0];
+    console.log('[DELETE USER] User found:', { id: user.id, username: user.username, role: user.role });
+
+    // Prevent deleting admin users
+    if (user.role === 'admin') {
+      console.log('[DELETE USER] Attempt to delete admin user blocked:', { userId, username: user.username });
       return res.status(400).json({ message: 'Cannot delete admin user' });
     }
 
-    const result = await db.pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [req.params.id]);
-    res.json({ message: 'User deleted successfully' });
+    // Check if user is being used in orders (seller_id)
+    const ordersCheck = await db.pool.query('SELECT COUNT(*) as count FROM orders WHERE seller_id = $1', [userId]);
+    const ordersCount = parseInt(ordersCheck.rows[0].count);
+    console.log('[DELETE USER] Orders check:', { userId, ordersCount });
+
+    if (ordersCount > 0) {
+      console.log('[DELETE USER] User has associated orders, cannot delete:', { userId, ordersCount });
+      return res.status(400).json({ 
+        message: `Cannot delete user. User has ${ordersCount} associated order(s). Please reassign orders first.` 
+      });
+    }
+
+    // Check if user is being used in purchase orders
+    const purchaseOrdersCheck = await db.pool.query('SELECT COUNT(*) as count FROM purchase_orders WHERE created_by = $1 OR approved_by = $1', [userId]);
+    const purchaseOrdersCount = parseInt(purchaseOrdersCheck.rows[0].count);
+    console.log('[DELETE USER] Purchase orders check:', { userId, purchaseOrdersCount });
+
+    if (purchaseOrdersCount > 0) {
+      console.log('[DELETE USER] User has associated purchase orders, cannot delete:', { userId, purchaseOrdersCount });
+      return res.status(400).json({ 
+        message: `Cannot delete user. User has ${purchaseOrdersCount} associated purchase order(s).` 
+      });
+    }
+
+    // Delete user
+    const result = await db.pool.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [userId]);
+    
+    if (result.rows.length === 0) {
+      console.log('[DELETE USER] User was not deleted (no rows returned):', { userId });
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log('[DELETE USER] User deleted successfully:', { 
+      id: result.rows[0].id, 
+      username: result.rows[0].username 
+    });
+
+    res.json({ 
+      message: 'User deleted successfully',
+      deletedUser: result.rows[0]
+    });
   } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[DELETE USER] Error:', error);
+    console.error('[DELETE USER] Error details:', {
+      message: error.message,
+      code: error.code,
+      constraint: error.constraint,
+      detail: error.detail
+    });
+
+    // Handle foreign key constraint errors
+    if (error.code === '23503') {
+      return res.status(400).json({ 
+        message: 'Cannot delete user. User is referenced in other records. Please remove all references first.' 
+      });
+    }
+
+    res.status(500).json({ 
+      message: error.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

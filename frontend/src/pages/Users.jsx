@@ -95,15 +95,27 @@ const Users = () => {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return
+    const user = users.find(u => u.id === id)
+    if (!user) return
+
+    // Prevent deleting admin
+    if (user.role === 'admin') {
+      toast.error('Không thể xóa tài khoản admin')
+      return
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa người dùng "${user.username}"?\n\nHành động này không thể hoàn tác.`)) {
+      return
+    }
     
     try {
-      await api.delete(`/users/${id}`)
-      toast.success('Xóa người dùng thành công!')
+      const response = await api.delete(`/users/${id}`)
+      toast.success(response.data?.message || 'Xóa người dùng thành công!')
       fetchUsers()
     } catch (error) {
       console.error('Error deleting user:', error)
-      toast.error('Có lỗi xảy ra khi xóa người dùng')
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng'
+      toast.error(errorMessage)
     }
   }
 

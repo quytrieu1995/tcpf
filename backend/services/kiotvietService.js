@@ -467,8 +467,8 @@ class KiotVietService {
       payment_method: this.mapKiotVietPaymentMethod(kvOrder.paymentMethod || kvOrder.paymentMethodId),
       notes: (kvOrder.description || kvOrder.note || '').substring(0, 1000), // Limit length
       kiotviet_data: JSON.stringify(kvOrder),
-      created_at: kvOrder.createdDate ? new Date(kvOrder.createdDate) : new Date(),
-      updated_at: kvOrder.modifiedDate ? new Date(kvOrder.modifiedDate) : new Date()
+      created_at: this.parseDate(kvOrder.createdDate) || new Date(),
+      updated_at: this.parseDate(kvOrder.modifiedDate) || new Date()
     };
 
     // Validate required fields
@@ -503,48 +503,76 @@ class KiotVietService {
         ]
       );
     } else {
-      // Create new order - use ON CONFLICT to handle duplicate order_number
-      const result = await db.pool.query(
-        `INSERT INTO orders (
-          kiotviet_id, order_number, customer_id, total_amount, status, 
-          delivery_status, payment_method, notes, kiotviet_data, created_at, updated_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (order_number) DO UPDATE SET
-          total_amount = EXCLUDED.total_amount,
-          status = EXCLUDED.status,
-          delivery_status = EXCLUDED.delivery_status,
-          payment_method = EXCLUDED.payment_method,
-          notes = EXCLUDED.notes,
-          kiotviet_data = EXCLUDED.kiotviet_data,
-          updated_at = EXCLUDED.updated_at
-        RETURNING id`,
-        [
-          orderData.kiotviet_id,
-          orderData.order_number,
-          orderData.customer_id,
-          orderData.total_amount,
-          orderData.status,
-          orderData.delivery_status,
-          orderData.payment_method,
-          orderData.notes,
-          orderData.kiotviet_data,
-          orderData.created_at,
-          orderData.updated_at
-        ]
-      );
+      // Create new order - handle duplicate order_number manually
+      try {
+        const result = await db.pool.query(
+          `INSERT INTO orders (
+            kiotviet_id, order_number, customer_id, total_amount, status, 
+            delivery_status, payment_method, notes, kiotviet_data, created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING id`,
+          [
+            orderData.kiotviet_id,
+            orderData.order_number,
+            orderData.customer_id,
+            orderData.total_amount,
+            orderData.status,
+            orderData.delivery_status,
+            orderData.payment_method,
+            orderData.notes,
+            orderData.kiotviet_data,
+            orderData.created_at,
+            orderData.updated_at
+          ]
+        );
 
-      const orderId = result.rows[0].id;
+        const orderId = result.rows[0].id;
 
-      // Sync order items if available
-      if (kvOrder.orderDetails && Array.isArray(kvOrder.orderDetails)) {
-        for (const item of kvOrder.orderDetails) {
-          try {
-            await this.syncOrderItem(orderId, item);
-          } catch (itemError) {
-            console.error(`[KIOTVIET] Error syncing order item:`, itemError.message);
-            // Continue with other items
+        // Sync order items if available
+        if (kvOrder.orderDetails && Array.isArray(kvOrder.orderDetails)) {
+          for (const item of kvOrder.orderDetails) {
+            try {
+              await this.syncOrderItem(orderId, item);
+            } catch (itemError) {
+              console.error(`[KIOTVIET] Error syncing order item:`, itemError.message);
+              // Continue with other items
+            }
           }
+        }
+      } catch (insertError) {
+        // If duplicate order_number, try to update instead
+        if (insertError.code === '23505' || insertError.message.includes('duplicate') || insertError.message.includes('unique')) {
+          console.log(`[KIOTVIET] Order ${orderData.order_number} already exists, updating instead...`);
+          const existingOrder = await db.pool.query(
+            'SELECT id FROM orders WHERE order_number = $1',
+            [orderData.order_number]
+          );
+          if (existingOrder.rows.length > 0) {
+            await db.pool.query(
+              `UPDATE orders 
+               SET total_amount = $1, status = $2, delivery_status = $3, 
+                   payment_method = $4, notes = $5, kiotviet_data = $6, updated_at = $7,
+                   customer_id = COALESCE($8, customer_id), kiotviet_id = COALESCE($9, kiotviet_id)
+               WHERE id = $10`,
+              [
+                orderData.total_amount,
+                orderData.status,
+                orderData.delivery_status,
+                orderData.payment_method,
+                orderData.notes,
+                orderData.kiotviet_data,
+                orderData.updated_at,
+                orderData.customer_id,
+                orderData.kiotviet_id,
+                existingOrder.rows[0].id
+              ]
+            );
+          } else {
+            throw insertError;
+          }
+        } else {
+          throw insertError;
         }
       }
     }
@@ -767,17 +795,11 @@ class KiotVietService {
         ]
       );
     } else {
-      // Create new customer - use ON CONFLICT to handle duplicate code/email
+      // Create new customer - handle duplicate manually
       try {
         await db.pool.query(
           `INSERT INTO customers (kiotviet_id, code, name, email, phone, address, kiotviet_data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (code) DO UPDATE SET
-             name = EXCLUDED.name,
-             email = COALESCE(NULLIF(EXCLUDED.email, ''), customers.email),
-             phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
-             address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
-             kiotviet_data = EXCLUDED.kiotviet_data`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
             customerData.kiotviet_id,
             customerData.code,
@@ -788,30 +810,38 @@ class KiotVietService {
             customerData.kiotviet_data
           ]
         );
-      } catch (error) {
-        // If still fails, try without code constraint
-        if (error.code === '23505') { // Unique violation
-          await db.pool.query(
-            `INSERT INTO customers (kiotviet_id, code, name, email, phone, address, kiotviet_data)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (kiotviet_id) DO UPDATE SET
-               name = EXCLUDED.name,
-               email = COALESCE(NULLIF(EXCLUDED.email, ''), customers.email),
-               phone = COALESCE(NULLIF(EXCLUDED.phone, ''), customers.phone),
-               address = COALESCE(NULLIF(EXCLUDED.address, ''), customers.address),
-               kiotviet_data = EXCLUDED.kiotviet_data`,
-            [
-              customerData.kiotviet_id,
-              customerData.code,
-              customerData.name,
-              customerData.email || null,
-              customerData.phone || null,
-              customerData.address || null,
-              customerData.kiotviet_data
-            ]
+      } catch (insertError) {
+        // If duplicate code or email, try to update instead
+        if (insertError.code === '23505' || insertError.message.includes('duplicate') || insertError.message.includes('unique')) {
+          console.log(`[KIOTVIET] Customer ${customerData.code} already exists, updating instead...`);
+          const existingCustomer = await db.pool.query(
+            'SELECT id FROM customers WHERE code = $1 OR (kiotviet_id = $2 AND kiotviet_id IS NOT NULL)',
+            [customerData.code, customerData.kiotviet_id]
           );
+          if (existingCustomer.rows.length > 0) {
+            await db.pool.query(
+              `UPDATE customers 
+               SET name = $1, email = COALESCE(NULLIF($2, ''), email), 
+                   phone = COALESCE(NULLIF($3, ''), phone), 
+                   address = COALESCE(NULLIF($4, ''), address), 
+                   kiotviet_data = $5,
+                   kiotviet_id = COALESCE($6, kiotviet_id)
+               WHERE id = $7`,
+              [
+                customerData.name,
+                customerData.email || null,
+                customerData.phone || null,
+                customerData.address || null,
+                customerData.kiotviet_data,
+                customerData.kiotviet_id,
+                existingCustomer.rows[0].id
+              ]
+            );
+          } else {
+            throw insertError;
+          }
         } else {
-          throw error;
+          throw insertError;
         }
       }
     }
@@ -833,6 +863,21 @@ class KiotVietService {
         JSON.stringify(data)
       ]
     );
+  }
+
+  /**
+   * Parse date string safely
+   */
+  parseDate(dateString) {
+    if (!dateString) return null;
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return null;
+      return date;
+    } catch (error) {
+      console.warn(`[KIOTVIET] Invalid date format: ${dateString}`);
+      return null;
+    }
   }
 
   /**

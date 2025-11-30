@@ -124,8 +124,11 @@ router.post('/sync/orders', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Sync orders error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
-      message: error.message || 'Failed to sync orders' 
+      message: error.message || 'Failed to sync orders',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -146,8 +149,11 @@ router.post('/sync/customers', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Sync customers error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
-      message: error.message || 'Failed to sync customers' 
+      message: error.message || 'Failed to sync customers',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

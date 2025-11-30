@@ -39,6 +39,57 @@ const init = async () => {
     await client.query('SELECT NOW()');
     client.release();
     console.log('✅ Database connection established');
+    
+    // Create KiotViet integration table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS kiotviet_config (
+        id SERIAL PRIMARY KEY,
+        client_id VARCHAR(255) NOT NULL,
+        client_secret VARCHAR(255) NOT NULL,
+        access_token TEXT,
+        refresh_token TEXT,
+        token_expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        last_sync_at TIMESTAMP,
+        sync_settings JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create KiotViet sync logs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS kiotviet_sync_logs (
+        id SERIAL PRIMARY KEY,
+        sync_type VARCHAR(50) NOT NULL,
+        status VARCHAR(20) NOT NULL,
+        records_synced INTEGER DEFAULT 0,
+        records_failed INTEGER DEFAULT 0,
+        error_message TEXT,
+        sync_data JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add KiotViet columns to existing tables
+    await pool.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS kiotviet_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS kiotviet_data JSONB
+    `);
+
+    await pool.query(`
+      ALTER TABLE customers 
+      ADD COLUMN IF NOT EXISTS kiotviet_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS kiotviet_data JSONB
+    `);
+
+    // Create indexes for better performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_orders_kiotviet_id ON orders(kiotviet_id);
+      CREATE INDEX IF NOT EXISTS idx_customers_kiotviet_id ON customers(kiotviet_id);
+    `);
+
     // Create tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (

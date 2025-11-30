@@ -19,6 +19,7 @@ import ShippingCarriers from './pages/ShippingCarriers'
 import Shipments from './pages/Shipments'
 import CreateOrder from './pages/CreateOrder'
 import Users from './pages/Users'
+import KiotViet from './pages/KiotViet'
 import Layout from './components/Layout'
 
 function App() {
@@ -57,6 +58,7 @@ function App() {
             <Route path="orders/create" element={<CreateOrder />} />
             <Route path="users" element={<Users />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="kiotviet" element={<KiotViet />} />
             </Route>
           </Routes>
         </Router>

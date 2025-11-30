@@ -93,7 +93,9 @@ router.post('/test-connection', authenticate, [
     } else {
       res.status(400).json({
         success: false,
-        message: result.message
+        message: result.message,
+        error: result.message,
+        details: result.details
       });
     }
   } catch (error) {

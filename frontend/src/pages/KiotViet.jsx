@@ -82,20 +82,23 @@ const KiotViet = () => {
   const handleTestConnection = async () => {
     try {
       setLoading(true)
+      setTestResult(null)
       const response = await api.post('/kiotviet/test-connection', formData)
       setTestResult(response.data)
       if (response.data.success) {
         toast.success('Kết nối thành công!')
       } else {
-        toast.error('Kết nối thất bại: ' + response.data.message)
+        toast.error('Kết nối thất bại: ' + (response.data.message || response.data.error))
       }
     } catch (error) {
       console.error('Error testing connection:', error)
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Có lỗi xảy ra khi kiểm tra kết nối'
       setTestResult({
         success: false,
-        message: error.response?.data?.message || 'Có lỗi xảy ra khi kiểm tra kết nối'
+        message: errorMessage,
+        details: error.response?.data?.details
       })
-      toast.error('Kết nối thất bại')
+      toast.error('Kết nối thất bại: ' + errorMessage)
     } finally {
       setLoading(false)
     }
@@ -437,27 +440,39 @@ const KiotViet = () => {
                 ? 'bg-green-50 border-green-200' 
                 : 'bg-red-50 border-red-200'
             }`}>
-              <div className="flex items-center gap-3">
+              <div className="flex items-start gap-3">
                 {testResult.success ? (
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <CheckCircle className="w-6 h-6 text-green-600 mt-0.5" />
                 ) : (
-                  <XCircle className="w-6 h-6 text-red-600" />
+                  <XCircle className="w-6 h-6 text-red-600 mt-0.5" />
                 )}
-                <div>
+                <div className="flex-1">
                   <p className={`font-semibold ${
                     testResult.success ? 'text-green-800' : 'text-red-800'
                   }`}>
                     {testResult.success ? 'Kết nối thành công!' : 'Kết nối thất bại'}
                   </p>
-                  <p className={`text-sm ${
+                  <p className={`text-sm mt-1 ${
                     testResult.success ? 'text-green-700' : 'text-red-700'
                   }`}>
                     {testResult.message}
                   </p>
                   {testResult.token_expires_at && (
-                    <p className="text-xs text-green-600 mt-1">
+                    <p className="text-xs text-green-600 mt-2">
                       Token hết hạn: {format(new Date(testResult.token_expires_at), 'dd/MM/yyyy HH:mm:ss')}
                     </p>
+                  )}
+                  {testResult.details && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">
+                        Chi tiết lỗi
+                      </summary>
+                      <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto max-h-40">
+                        {typeof testResult.details === 'string' 
+                          ? testResult.details 
+                          : JSON.stringify(testResult.details, null, 2)}
+                      </pre>
+                    </details>
                   )}
                 </div>
               </div>

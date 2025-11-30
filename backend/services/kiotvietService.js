@@ -223,23 +223,28 @@ class KiotVietService {
    * Make authenticated request to KiotViet API
    */
   async makeRequest(endpoint, method = 'GET', data = null) {
-    const tokenData = await this.getValidToken();
-    const accessToken = tokenData.access_token;
-    const config = await this.getConfig();
-    const retailerCode = (config?.retailer_code || this.currentRetailerCode)?.trim();
-
-    if (!retailerCode) {
-      throw new Error('Retailer code is required');
-    }
-
-    console.log('[KIOTVIET] Making API request:', {
-      method,
-      endpoint,
-      retailer: retailerCode,
-      hasToken: !!accessToken
-    });
-
     try {
+      const tokenData = await this.getValidToken();
+      const accessToken = tokenData.access_token;
+      const config = await this.getConfig();
+      const retailerCode = (config?.retailer_code || this.currentRetailerCode)?.trim();
+
+      if (!retailerCode) {
+        throw new Error('Retailer code is required');
+      }
+
+      if (!accessToken) {
+        throw new Error('Access token is required. Please check KiotViet configuration.');
+      }
+
+      console.log('[KIOTVIET] Making API request:', {
+        method,
+        endpoint,
+        retailer: retailerCode,
+        hasToken: !!accessToken,
+        tokenLength: accessToken.length
+      });
+
       const response = await axios({
         method,
         url: `${this.baseURL}${endpoint}`,
@@ -252,6 +257,7 @@ class KiotVietService {
         timeout: 30000
       });
 
+      console.log('[KIOTVIET] API response status:', response.status);
       return response.data;
     } catch (error) {
       console.error(`[KIOTVIET] API request error (${endpoint}):`, {
@@ -308,6 +314,17 @@ class KiotVietService {
     const { startDate, endDate, pageSize = 100, pageNumber = 1 } = options;
     
     try {
+      console.log('[KIOTVIET] Starting sync orders with options:', { startDate, endDate, pageSize, pageNumber });
+      
+      // Check config first
+      const config = await this.getConfig();
+      if (!config || !config.is_active) {
+        throw new Error('KiotViet configuration not found or inactive');
+      }
+      if (!config.access_token && !config.retailer_code) {
+        throw new Error('KiotViet not configured. Please configure first.');
+      }
+
       // Try different endpoint formats
       let endpoint = '/api/orders';
       const params = [];
@@ -326,14 +343,23 @@ class KiotVietService {
       let response;
       try {
         response = await this.makeRequest(endpoint);
+        console.log('[KIOTVIET] API response received, type:', typeof response, 'has data:', !!response?.data);
       } catch (error) {
+        console.error('[KIOTVIET] makeRequest error:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          message: error.message,
+          data: error.response?.data
+        });
         // If 503 or endpoint not found, try alternative endpoint
         if (error.response?.status === 503 || error.response?.status === 404) {
           console.log('[KIOTVIET] Primary endpoint failed, trying alternative...');
           endpoint = '/api/invoices'; // KiotViet sometimes uses invoices instead of orders
           try {
             response = await this.makeRequest(endpoint + (params.length > 0 ? '?' + params.join('&') : ''));
+            console.log('[KIOTVIET] Alternative endpoint response received');
           } catch (altError) {
+            console.error('[KIOTVIET] Alternative endpoint also failed:', altError.message);
             throw new Error(`Failed to sync orders: ${error.message || 'API endpoint not available'}`);
           }
         } else {
@@ -343,29 +369,37 @@ class KiotVietService {
 
       // Handle different response formats
       let orders = [];
-      if (Array.isArray(response.data)) {
-        orders = response.data;
-      } else if (Array.isArray(response)) {
-        orders = response;
-      } else if (response.data && Array.isArray(response.data.data)) {
-        orders = response.data.data;
-      } else if (response.data && response.data.items) {
-        orders = response.data.items;
-      } else if (response.data && Array.isArray(response.data)) {
-        orders = response.data;
-      } else if (response && typeof response === 'object') {
-        // Try to find any array property
-        for (const key in response) {
-          if (Array.isArray(response[key])) {
-            orders = response[key];
-            break;
+      try {
+        if (Array.isArray(response.data)) {
+          orders = response.data;
+        } else if (Array.isArray(response)) {
+          orders = response;
+        } else if (response.data && Array.isArray(response.data.data)) {
+          orders = response.data.data;
+        } else if (response.data && response.data.items) {
+          orders = response.data.items;
+        } else if (response.data && Array.isArray(response.data)) {
+          orders = response.data;
+        } else if (response && typeof response === 'object') {
+          // Try to find any array property
+          for (const key in response) {
+            if (Array.isArray(response[key])) {
+              orders = response[key];
+              console.log(`[KIOTVIET] Found orders array in property: ${key}`);
+              break;
+            }
           }
         }
-      }
 
-      if (!Array.isArray(orders)) {
-        console.warn('[KIOTVIET] Unexpected response format:', JSON.stringify(response).substring(0, 200));
-        orders = [];
+        if (!Array.isArray(orders)) {
+          console.warn('[KIOTVIET] Unexpected response format. Response keys:', Object.keys(response || {}));
+          console.warn('[KIOTVIET] Response sample:', JSON.stringify(response).substring(0, 500));
+          // If no orders found but response is successful, return empty array
+          orders = [];
+        }
+      } catch (parseError) {
+        console.error('[KIOTVIET] Error parsing response:', parseError);
+        throw new Error(`Failed to parse KiotViet response: ${parseError.message}`);
       }
 
       console.log(`[KIOTVIET] Found ${orders.length} orders to sync`);
@@ -374,13 +408,16 @@ class KiotVietService {
       let failed = 0;
       const errors = [];
 
-      for (const kvOrder of orders) {
+      for (let i = 0; i < orders.length; i++) {
+        const kvOrder = orders[i];
         try {
           if (!kvOrder || !kvOrder.id) {
-            console.warn('[KIOTVIET] Skipping invalid order:', JSON.stringify(kvOrder).substring(0, 100));
+            console.warn(`[KIOTVIET] Skipping invalid order at index ${i}:`, JSON.stringify(kvOrder).substring(0, 100));
             failed++;
             continue;
           }
+          
+          console.log(`[KIOTVIET] Syncing order ${i + 1}/${orders.length}: ${kvOrder.id || kvOrder.code || 'unknown'}`);
           await this.syncOrderToDatabase(kvOrder);
           synced++;
         } catch (error) {
@@ -388,14 +425,20 @@ class KiotVietService {
           const errorInfo = {
             order_id: kvOrder?.id || 'unknown',
             order_code: kvOrder?.code || kvOrder?.invoiceNumber || 'unknown',
-            error: error.message || 'Unknown error'
+            error: error.message || 'Unknown error',
+            error_code: error.code
           };
           errors.push(errorInfo);
-          console.error(`[KIOTVIET] Error syncing order ${errorInfo.order_id}:`, error.message);
+          console.error(`[KIOTVIET] Error syncing order ${errorInfo.order_id} (${errorInfo.order_code}):`, error.message);
           
           // Log detailed error for debugging
           if (error.stack) {
             console.error(`[KIOTVIET] Error stack:`, error.stack.substring(0, 500));
+          }
+          
+          // If it's a critical error, log full error
+          if (error.code === '23505' || error.message.includes('duplicate')) {
+            console.log(`[KIOTVIET] Duplicate order detected, this should be handled automatically`);
           }
         }
       }
@@ -446,7 +489,8 @@ class KiotVietService {
       throw new Error('Invalid order data: missing id');
     }
 
-    // Find or create customer if exists in order
+    try {
+      // Find or create customer if exists in order
     let customerId = null;
     if (kvOrder.customerId || kvOrder.customer?.id) {
       const customerResult = await db.pool.query(

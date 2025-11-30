@@ -39,10 +39,10 @@ const KiotViet = () => {
     fetchSyncLogs()
     fetchAutoSyncStatus()
     
-    // Poll auto-sync status every 5 seconds
+    // Poll auto-sync status every 10 seconds (reduced frequency to avoid 502 spam)
     const interval = setInterval(() => {
       fetchAutoSyncStatus()
-    }, 5000)
+    }, 10000) // Changed from 5 to 10 seconds
     
     return () => clearInterval(interval)
   }, [])
@@ -76,7 +76,17 @@ const KiotViet = () => {
       const response = await api.get('/kiotviet/auto-sync/status')
       setAutoSyncStatus(response.data)
     } catch (error) {
-      console.error('Error fetching auto-sync status:', error)
+      // Don't log 502 errors repeatedly, just set default status
+      if (error.response?.status === 502) {
+        setAutoSyncStatus({
+          isRunning: false,
+          isSyncing: false,
+          lastSyncTime: null,
+          error: 'Backend server unavailable'
+        })
+      } else {
+        console.error('Error fetching auto-sync status:', error)
+      }
     }
   }
 

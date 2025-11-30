@@ -68,14 +68,18 @@ const Dashboard = () => {
     return <div className="text-center text-gray-500">Không thể tải dữ liệu</div>
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-      <div className="flex items-center justify-between">
+  const StatCard = ({ title, value, icon: Icon, gradient, trend, trendValue, index = 0 }) => (
+    <div className="group relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up overflow-hidden"
+         style={{ animationDelay: `${index * 100}ms` }}>
+      {/* Gradient overlay on hover */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+      
+      <div className="flex items-center justify-between relative z-10">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mt-2">{value}</p>
           {trend && trendValue && (
-            <div className={`mt-3 flex items-center text-sm ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`mt-3 flex items-center text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {trend > 0 ? (
                 <ArrowUpRight className="w-4 h-4 mr-1" />
               ) : (
@@ -85,10 +89,13 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-full ${color} ml-4`}>
+        <div className={`p-4 rounded-2xl bg-gradient-to-br ${gradient} ml-4 shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
       </div>
+      
+      {/* Decorative corner */}
+      <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${gradient} opacity-10 rounded-bl-full`}></div>
     </div>
   )
 
@@ -106,28 +113,28 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1 text-sm sm:text-base">Tổng quan về hoạt động bán hàng</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="animate-slide-up">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gradient-primary mb-2">Dashboard</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Tổng quan về hoạt động bán hàng</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
           <Button
-            variant={period === '7' ? 'default' : 'outline'}
+            variant={period === '7' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('7')}
           >
             7 ngày
           </Button>
           <Button
-            variant={period === '30' ? 'default' : 'outline'}
+            variant={period === '30' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('30')}
           >
             30 ngày
           </Button>
           <Button
-            variant={period === '90' ? 'default' : 'outline'}
+            variant={period === '90' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('90')}
           >
@@ -142,29 +149,33 @@ const Dashboard = () => {
           title="Doanh thu"
           value={formatCurrency(stats.overview.totalRevenue)}
           icon={DollarSign}
-          color="bg-green-500"
+          gradient="from-green-500 to-emerald-600"
           trend={stats.overview.revenueGrowth}
           trendValue={stats.overview.revenueGrowth}
+          index={0}
         />
         <StatCard
           title="Đơn hàng"
           value={formatNumber(stats.overview.totalOrders)}
           icon={ShoppingCart}
-          color="bg-blue-500"
+          gradient="from-blue-500 to-cyan-600"
           trend={stats.overview.ordersGrowth}
           trendValue={stats.overview.ordersGrowth}
+          index={1}
         />
         <StatCard
           title="Khách hàng"
           value={formatNumber(stats.overview.totalCustomers)}
           icon={Users}
-          color="bg-purple-500"
+          gradient="from-purple-500 to-pink-600"
+          index={2}
         />
         <StatCard
           title="Giá trị đơn TB"
           value={formatCurrency(stats.overview.avgOrderValue)}
           icon={TrendingUp}
-          color="bg-orange-500"
+          gradient="from-orange-500 to-red-600"
+          index={3}
         />
       </div>
 
@@ -173,32 +184,36 @@ const Dashboard = () => {
           title="Sản phẩm"
           value={formatNumber(stats.overview.totalProducts)}
           icon={Package}
-          color="bg-indigo-500"
+          gradient="from-indigo-500 to-purple-600"
+          index={4}
         />
         <StatCard
           title="Hàng sắp hết"
           value={formatNumber(stats.overview.lowStockProducts)}
           icon={AlertTriangle}
-          color="bg-red-500"
+          gradient="from-red-500 to-pink-600"
+          index={5}
         />
         <StatCard
           title="Đơn COD"
           value={formatNumber(stats.codStats?.total_orders || 0)}
           icon={CreditCard}
-          color="bg-yellow-500"
+          gradient="from-yellow-500 to-amber-600"
+          index={6}
         />
         <StatCard
           title="Tổng COD"
           value={formatCurrency(stats.codStats?.total_cod || 0)}
           icon={DollarSign}
-          color="bg-pink-500"
+          gradient="from-pink-500 to-rose-600"
+          index={7}
         />
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Revenue by Day */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '200ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo ngày</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={stats.revenueByDay}>
@@ -232,7 +247,7 @@ const Dashboard = () => {
         </div>
 
         {/* Revenue by Month */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '300ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo tháng (6 tháng gần đây)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.revenueByMonth}>
@@ -257,7 +272,7 @@ const Dashboard = () => {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Orders by Status */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '400ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng theo trạng thái</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -281,7 +296,7 @@ const Dashboard = () => {
         </div>
 
         {/* Delivery Status */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '500ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Trạng thái giao hàng</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -308,7 +323,7 @@ const Dashboard = () => {
       {/* Charts Row 3 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Payment Methods */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '600ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Phương thức thanh toán</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.paymentMethods} layout="vertical">
@@ -329,7 +344,7 @@ const Dashboard = () => {
         </div>
 
         {/* Sales Channels */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '700ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Kênh bán hàng</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.salesChannels}>
@@ -351,7 +366,7 @@ const Dashboard = () => {
       </div>
 
       {/* Top Products */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '800ms' }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Sản phẩm bán chạy</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={stats.topProducts}>
@@ -372,7 +387,7 @@ const Dashboard = () => {
       </div>
 
       {/* Top Customers */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '900ms' }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Khách hàng hàng đầu</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -410,7 +425,7 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Orders */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 overflow-x-auto">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 overflow-x-auto card-hover animate-slide-up" style={{ animationDelay: '1000ms' }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng gần đây</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -467,7 +482,7 @@ const Dashboard = () => {
 
       {/* COD & Return Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1100ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê COD</h2>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -489,7 +504,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1200ms' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê trả hàng</h2>
           <div className="space-y-3">
             <div className="flex justify-between items-center">

@@ -9,11 +9,11 @@ const Button = forwardRef(({
   ...props 
 }, ref) => {
   const variants = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400',
-    danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
-    outline: 'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 active:bg-primary-100',
-    ghost: 'text-gray-700 hover:bg-gray-100 active:bg-gray-200',
+    primary: 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl',
+    secondary: 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-900 hover:from-gray-300 hover:to-gray-400 shadow-md hover:shadow-lg',
+    danger: 'bg-gradient-to-r from-red-500 to-pink-600 text-white hover:from-red-600 hover:to-pink-700 shadow-lg hover:shadow-xl',
+    outline: 'border-2 border-gradient-to-r from-blue-500 to-purple-600 text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 shadow-sm hover:shadow-md',
+    ghost: 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50',
   }
 
   const sizes = {
@@ -28,10 +28,11 @@ const Button = forwardRef(({
       disabled={loading || props.disabled}
       className={`
         inline-flex items-center justify-center
-        font-medium rounded-lg
-        transition-all duration-200
+        font-semibold rounded-xl
+        transition-all duration-300
         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500
         disabled:opacity-50 disabled:cursor-not-allowed
+        transform hover:scale-105 active:scale-95
         ${variants[variant]}
         ${sizes[size]}
         ${className}
@@ -56,4 +57,3 @@ const Button = forwardRef(({
 Button.displayName = 'Button'
 
 export default Button
-

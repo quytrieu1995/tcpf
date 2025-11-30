@@ -138,15 +138,21 @@ router.put('/:id', authenticate, [
       params.push(JSON.stringify(permissions));
     }
 
-    if (password) {
+    if (password && password.trim() !== '') {
       // Validate password length
-      if (password.length < 6) {
+      const trimmedPassword = password.trim();
+      if (trimmedPassword.length < 6) {
         return res.status(400).json({ message: 'Password must be at least 6 characters' });
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
       paramCount++;
       query += `${paramCount > 1 ? ',' : ''} password = $${paramCount}`;
       params.push(hashedPassword);
+    }
+
+    // Ensure at least one field is being updated
+    if (paramCount === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
     }
 
     paramCount++;

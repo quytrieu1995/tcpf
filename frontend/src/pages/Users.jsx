@@ -59,7 +59,12 @@ const Users = () => {
     e.preventDefault()
     try {
       if (editingUser) {
-        await api.put(`/users/${editingUser.id}`, formData)
+        // Remove password field if it's empty when editing
+        const updateData = { ...formData }
+        if (!updateData.password || updateData.password.trim() === '') {
+          delete updateData.password
+        }
+        await api.put(`/users/${editingUser.id}`, updateData)
         toast.success('Cập nhật người dùng thành công!')
       } else {
         await api.post('/users', formData)

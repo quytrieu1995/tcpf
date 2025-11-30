@@ -29,7 +29,15 @@ router.post('/login', [
     }
 
     const user = result.rows[0];
-    const isValidPassword = await bcrypt.compare(password, user.password);
+
+    // Check if user is active
+    if (user.is_active === false) {
+      return res.status(401).json({ message: 'Tài khoản đã bị vô hiệu hóa' });
+    }
+
+    // Trim password before comparing
+    const trimmedPassword = password.trim();
+    const isValidPassword = await bcrypt.compare(trimmedPassword, user.password);
 
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });

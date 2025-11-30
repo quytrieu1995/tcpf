@@ -59,7 +59,13 @@ router.post('/', authenticate, [
       return res.status(400).json({ message: 'Username or email already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Trim and validate password
+    const trimmedPassword = password.trim();
+    if (trimmedPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
     const result = await db.pool.query(
       `INSERT INTO users (username, email, password, role, full_name, phone, is_active, permissions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

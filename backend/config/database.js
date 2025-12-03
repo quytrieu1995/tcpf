@@ -118,6 +118,30 @@ const init = async () => {
       CREATE INDEX IF NOT EXISTS idx_products_kiotviet_id ON products(kiotviet_id);
     `);
 
+    // Create API keys table for API authentication
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id SERIAL PRIMARY KEY,
+        client_id VARCHAR(255) UNIQUE NOT NULL,
+        key_secret VARCHAR(255) NOT NULL,
+        token TEXT,
+        name VARCHAR(255),
+        description TEXT,
+        is_active BOOLEAN DEFAULT true,
+        last_used_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_api_keys_client_id ON api_keys(client_id);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_token ON api_keys(token);
+      CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+    `);
+
     // Create tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (

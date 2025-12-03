@@ -7,11 +7,12 @@ Tài liệu API cho hệ thống quản lý bán hàng (Sales Management System)
 1. [Tổng quan](#tổng-quan)
 2. [Xác thực (Authentication)](#xác-thực-authentication)
 3. [Base URL](#base-url)
-4. [Đơn hàng (Orders)](#đơn-hàng-orders)
-5. [Hàng hóa (Products)](#hàng-hóa-products)
-6. [Khách hàng (Customers)](#khách-hàng-customers)
-7. [Vận đơn (Shipments)](#vận-đơn-shipments)
-8. [Mã lỗi (Error Codes)](#mã-lỗi-error-codes)
+4. [Quản lý API Keys](#quản-lý-api-keys)
+5. [Đơn hàng (Orders)](#đơn-hàng-orders)
+6. [Hàng hóa (Products)](#hàng-hóa-products)
+7. [Khách hàng (Customers)](#khách-hàng-customers)
+8. [Vận đơn (Shipments)](#vận-đơn-shipments)
+9. [Mã lỗi (Error Codes)](#mã-lỗi-error-codes)
 
 ---
 
@@ -33,9 +34,13 @@ API này cung cấp các endpoint để quản lý:
 
 ## Xác thực (Authentication)
 
+Hệ thống hỗ trợ 2 phương thức xác thực:
+
+### 1. JWT Token (Cho ứng dụng web)
+
 Tất cả các API endpoints (trừ login) đều yêu cầu xác thực bằng JWT token.
 
-### Cách sử dụng
+#### Cách sử dụng
 
 Gửi token trong header `Authorization`:
 
@@ -43,12 +48,73 @@ Gửi token trong header `Authorization`:
 Authorization: Bearer <your_jwt_token>
 ```
 
-### Ví dụ
+#### Ví dụ
 
 ```bash
 curl -X GET "https://api.example.com/api/orders" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
+
+### 2. API Key Authentication (Cho tích hợp bên thứ ba)
+
+Hệ thống hỗ trợ xác thực bằng API key với 2 cách:
+
+#### Cách 1: Sử dụng API Token
+
+Gửi token trong header `Authorization`:
+
+```
+Authorization: Bearer <api_token>
+```
+
+hoặc
+
+```
+Authorization: ApiKey <api_token>
+```
+
+#### Cách 2: Sử dụng Client ID + Key Secret
+
+Gửi trong headers:
+
+```
+X-Client-ID: <client_id>
+X-Key-Secret: <key_secret>
+```
+
+hoặc trong query parameters:
+
+```
+?client_id=<client_id>&key_secret=<key_secret>
+```
+
+#### Ví dụ với API Token
+
+```bash
+curl -X GET "https://api.example.com/api/orders" \
+  -H "Authorization: Bearer your_api_token_here"
+```
+
+#### Ví dụ với Client ID + Key Secret
+
+```bash
+curl -X GET "https://api.example.com/api/orders" \
+  -H "X-Client-ID: client_abc123" \
+  -H "X-Key-Secret: your_key_secret_here"
+```
+
+hoặc
+
+```bash
+curl -X GET "https://api.example.com/api/orders?client_id=client_abc123&key_secret=your_key_secret_here"
+```
+
+#### Lưu ý
+
+- API token được tạo tự động khi tạo API key mới
+- Key secret chỉ hiển thị một lần khi tạo, hãy lưu lại ngay
+- API key có thể được set thời gian hết hạn (expires_at)
+- API key có thể bị vô hiệu hóa (revoke) mà không cần xóa
 
 ---
 

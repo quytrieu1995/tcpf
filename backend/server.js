@@ -73,6 +73,7 @@ app.use('/api/shipments', require('./routes/shipments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/address', require('./routes/address'));
 app.use('/api/kiotviet', require('./routes/kiotviet'));
+app.use('/api/api-keys', require('./routes/api-keys'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

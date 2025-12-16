@@ -74,6 +74,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/address', require('./routes/address'));
 app.use('/api/kiotviet', require('./routes/kiotviet'));
 app.use('/api/api-keys', require('./routes/api-keys'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

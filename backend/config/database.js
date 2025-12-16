@@ -142,6 +142,24 @@ const init = async () => {
       CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
     `);
 
+    // Create webhook logs table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS kiotviet_webhook_logs (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(100) NOT NULL,
+        payload JSONB,
+        status VARCHAR(20) DEFAULT 'pending',
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_webhook_logs_event_type ON kiotviet_webhook_logs(event_type);
+      CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON kiotviet_webhook_logs(status);
+      CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON kiotviet_webhook_logs(created_at);
+    `);
+
     // Create tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { useToast } from './ToastContainer'
+import api from '../config/api'
 
 const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) => {
   const toast = useToast()
@@ -39,24 +40,26 @@ const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) =>
         const formData = new FormData()
         formData.append('image', file)
         
-        const response = await fetch('/api/upload/image', {
-          method: 'POST',
-          body: formData
+        // Use api instance to ensure proper base URL and auth headers
+        const response = await api.post('/upload/image', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
         })
         
-        if (!response.ok) {
+        if (response.data && response.data.url) {
+          uploadedUrls.push(response.data.url)
+        } else {
           throw new Error(`Upload failed for ${file.name}`)
         }
-        
-        const data = await response.json()
-        uploadedUrls.push(data.url)
       }
       
       onChange([...images, ...uploadedUrls])
       toast.success(`Đã upload ${uploadedUrls.length} ảnh thành công`)
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error('Có lỗi xảy ra khi upload ảnh')
+      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi upload ảnh'
+      toast.error(errorMessage)
     } finally {
       setUploading(false)
       if (fileInputRef.current) {

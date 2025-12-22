@@ -190,7 +190,7 @@ const Layout = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col relative z-10">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center px-4 sm:px-6 flex-shrink-0 shadow-sm">
+        <div className="sticky top-0 z-[100] bg-white/80 backdrop-blur-md border-b border-slate-200/60 h-16 flex items-center px-4 sm:px-6 flex-shrink-0 shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden text-slate-600 hover:text-slate-900 transition-colors p-2 rounded-lg hover:bg-slate-100"

@@ -126,6 +126,169 @@ router.get('/revenue', authenticate, async (req, res) => {
   }
 });
 
+// Efficiency report
+router.get('/efficiency', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Total orders and completion rate
+    const ordersStats = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_orders,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_orders,
+        COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing_orders
+      FROM orders
+      WHERE created_at >= $1::date
+      AND created_at <= $2::date
+    `, [start, end]);
+
+    const stats = ordersStats.rows[0];
+    const completionRate = stats.total_orders > 0 
+      ? ((parseInt(stats.completed_orders) / parseInt(stats.total_orders)) * 100).toFixed(1)
+      : 0;
+
+    // Average processing time (time from created to completed)
+    const processingTime = await db.pool.query(`
+      SELECT 
+        AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600) as avg_hours
+      FROM orders
+      WHERE status = 'completed'
+      AND created_at >= $1::date
+      AND created_at <= $2::date
+      AND updated_at > created_at
+    `, [start, end]);
+
+    const avgProcessingHours = processingTime.rows[0].avg_hours 
+      ? parseFloat(processingTime.rows[0].avg_hours).toFixed(1)
+      : 0;
+
+    // Efficiency by day
+    const efficiencyByDay = await db.pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
+        AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600) as avg_processing_hours
+      FROM orders
+      WHERE created_at >= $1::date
+      AND created_at <= $2::date
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [start, end]);
+
+    // Orders by status
+    const ordersByStatus = await db.pool.query(`
+      SELECT 
+        status,
+        COUNT(*) as count,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM orders WHERE created_at >= $1::date AND created_at <= $2::date), 1) as percentage
+      FROM orders
+      WHERE created_at >= $1::date
+      AND created_at <= $2::date
+      GROUP BY status
+      ORDER BY count DESC
+    `, [start, end]);
+
+    // Previous period comparison
+    const periodDays = Math.ceil((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+    const previousStart = new Date(start);
+    previousStart.setDate(previousStart.getDate() - periodDays);
+    const previousEnd = new Date(start);
+
+    const previousOrdersStats = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders
+      FROM orders
+      WHERE created_at >= $1::date
+      AND created_at < $2::date
+    `, [previousStart.toISOString().split('T')[0], previousEnd.toISOString().split('T')[0]]);
+
+    const prevStats = previousOrdersStats.rows[0];
+    const prevCompletionRate = prevStats.total_orders > 0 
+      ? ((parseInt(prevStats.completed_orders) / parseInt(prevStats.total_orders)) * 100).toFixed(1)
+      : 0;
+    
+    const completionRateGrowth = prevCompletionRate > 0 
+      ? ((parseFloat(completionRate) - parseFloat(prevCompletionRate)) / parseFloat(prevCompletionRate) * 100).toFixed(1)
+      : 0;
+
+    // Employee performance (if seller_id exists)
+    const employeePerformance = await db.pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.full_name,
+        COUNT(o.id) as total_orders,
+        COUNT(CASE WHEN o.status = 'completed' THEN 1 END) as completed_orders,
+        ROUND(COUNT(CASE WHEN o.status = 'completed' THEN 1 END) * 100.0 / NULLIF(COUNT(o.id), 0), 1) as completion_rate,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount ELSE 0 END), 0) as total_revenue
+      FROM orders o
+      LEFT JOIN users u ON o.seller_id = u.id
+      WHERE o.created_at >= $1::date
+      AND o.created_at <= $2::date
+      AND o.seller_id IS NOT NULL
+      GROUP BY u.id, u.username, u.full_name
+      ORDER BY total_orders DESC
+      LIMIT 10
+    `, [start, end]);
+
+    // Conversion rate (orders per customer)
+    const conversionStats = await db.pool.query(`
+      SELECT 
+        COUNT(DISTINCT customer_id) as unique_customers,
+        COUNT(*) as total_orders,
+        ROUND(COUNT(*)::numeric / NULLIF(COUNT(DISTINCT customer_id), 0), 2) as orders_per_customer
+      FROM orders
+      WHERE created_at >= $1::date
+      AND created_at <= $2::date
+      AND customer_id IS NOT NULL
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      metrics: {
+        completion_rate: parseFloat(completionRate),
+        completion_rate_growth: parseFloat(completionRateGrowth),
+        avg_processing_hours: parseFloat(avgProcessingHours),
+        total_orders: parseInt(stats.total_orders),
+        completed_orders: parseInt(stats.completed_orders),
+        cancelled_orders: parseInt(stats.cancelled_orders),
+        pending_orders: parseInt(stats.pending_orders),
+        processing_orders: parseInt(stats.processing_orders),
+        orders_per_customer: parseFloat(conversionStats.rows[0].orders_per_customer || 0),
+        unique_customers: parseInt(conversionStats.rows[0].unique_customers || 0)
+      },
+      efficiency_by_day: efficiencyByDay.rows.map(row => ({
+        date: row.date,
+        total_orders: parseInt(row.total_orders),
+        completed_orders: parseInt(row.completed_orders),
+        completion_rate: row.total_orders > 0 
+          ? ((parseInt(row.completed_orders) / parseInt(row.total_orders)) * 100).toFixed(1)
+          : 0,
+        avg_processing_hours: row.avg_processing_hours ? parseFloat(row.avg_processing_hours).toFixed(1) : 0
+      })),
+      orders_by_status: ordersByStatus.rows,
+      employee_performance: employeePerformance.rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        full_name: row.full_name,
+        total_orders: parseInt(row.total_orders),
+        completed_orders: parseInt(row.completed_orders),
+        completion_rate: parseFloat(row.completion_rate || 0),
+        total_revenue: parseFloat(row.total_revenue || 0)
+      }))
+    });
+  } catch (error) {
+    console.error('Get efficiency report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Product performance report
 router.get('/products', authenticate, async (req, res) => {
   try {

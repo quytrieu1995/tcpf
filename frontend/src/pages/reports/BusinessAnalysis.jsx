@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../../config/api'
 import { TrendingUp, DollarSign, ShoppingCart, Users } from 'lucide-react'
+import DateRangeSelector from '../../components/DateRangeSelector'
 import {
   LineChart,
   Line,
@@ -38,6 +39,10 @@ const BusinessAnalysis = () => {
     }
   }
 
+  const handleDateRangeChange = (newRange) => {
+    setDateRange(newRange)
+  }
+
   const formatCurrency = (value) => {
     if (!value) return '0 ₫'
     return new Intl.NumberFormat('vi-VN', {
@@ -58,21 +63,11 @@ const BusinessAnalysis = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">Phân tích kinh doanh</h2>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={dateRange.start_date}
-            onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          />
-          <span className="text-gray-600">đến</span>
-          <input
-            type="date"
-            value={dateRange.end_date}
-            onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          />
-        </div>
+        <DateRangeSelector
+          onDateRangeChange={handleDateRangeChange}
+          defaultStartDate={dateRange.start_date}
+          defaultEndDate={dateRange.end_date}
+        />
       </div>
 
       {data && (

@@ -1,25 +1,34 @@
 import { useEffect, useState } from 'react'
 import api from '../../config/api'
 import { Users, TrendingUp, DollarSign } from 'lucide-react'
+import DateRangeSelector from '../../components/DateRangeSelector'
 
 const CustomerAnalysis = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [dateRange, setDateRange] = useState({
+    start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0]
+  })
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [dateRange])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/reports/sales')
+      const response = await api.get(`/api/reports/sales?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`)
       setData(response.data)
     } catch (error) {
       console.error('Error fetching customer analysis:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDateRangeChange = (newRange) => {
+    setDateRange(newRange)
   }
 
   const formatCurrency = (value) => {
@@ -40,7 +49,14 @@ const CustomerAnalysis = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Phân tích khách hàng</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Phân tích khách hàng</h2>
+        <DateRangeSelector
+          onDateRangeChange={handleDateRangeChange}
+          defaultStartDate={dateRange.start_date}
+          defaultEndDate={dateRange.end_date}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-4">

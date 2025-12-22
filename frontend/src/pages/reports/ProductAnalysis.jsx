@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../../config/api'
 import { Package, TrendingUp, TrendingDown } from 'lucide-react'
+import DateRangeSelector from '../../components/DateRangeSelector'
 import {
   BarChart,
   Bar,
@@ -15,21 +16,29 @@ import {
 const ProductAnalysis = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [dateRange, setDateRange] = useState({
+    start_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0]
+  })
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [dateRange])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/api/reports/sales')
+      const response = await api.get(`/api/reports/sales?start_date=${dateRange.start_date}&end_date=${dateRange.end_date}`)
       setData(response.data)
     } catch (error) {
       console.error('Error fetching product analysis:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDateRangeChange = (newRange) => {
+    setDateRange(newRange)
   }
 
   if (loading) {
@@ -42,7 +51,14 @@ const ProductAnalysis = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Phân tích hàng hóa</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Phân tích hàng hóa</h2>
+        <DateRangeSelector
+          onDateRangeChange={handleDateRangeChange}
+          defaultStartDate={dateRange.start_date}
+          defaultEndDate={dateRange.end_date}
+        />
+      </div>
       
       {data?.top_products && data.top_products.length > 0 && (
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">

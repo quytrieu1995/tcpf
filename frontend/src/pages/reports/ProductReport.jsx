@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../../config/api'
 import { Package, Download, TrendingUp, DollarSign } from 'lucide-react'
+import DateRangeSelector from '../../components/DateRangeSelector'
 import {
   BarChart,
   Bar,
@@ -88,21 +89,11 @@ const ProductReport = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Báo cáo hàng hóa</h2>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dateRange.start_date}
-              onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-            <span className="text-gray-600">đến</span>
-            <input
-              type="date"
-              value={dateRange.end_date}
-              onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-          </div>
+          <DateRangeSelector
+            onDateRangeChange={(newRange) => setDateRange(newRange)}
+            defaultStartDate={dateRange.start_date}
+            defaultEndDate={dateRange.end_date}
+          />
           <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

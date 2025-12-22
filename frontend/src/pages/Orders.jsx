@@ -9,6 +9,7 @@ import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import Input from '../components/Input'
+import ColumnSelector from '../components/ColumnSelector'
 
 const Orders = () => {
   const toast = useToast()
@@ -26,6 +27,7 @@ const Orders = () => {
   const [users, setUsers] = useState([])
   const [editFormData, setEditFormData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState([])
 
   useEffect(() => {
     fetchOrders()
@@ -316,7 +318,7 @@ const Orders = () => {
     )
   }
 
-  const columns = [
+  const allColumns = [
     {
       key: 'tracking_number',
       header: 'MÃ VẬN ĐƠN',
@@ -412,6 +414,7 @@ const Orders = () => {
       key: 'actions',
       header: 'Thao tác',
       sortable: false,
+      required: true, // Actions column is always required
       render: (row) => (
         <div className="flex items-center gap-2">
           <Button
@@ -435,6 +438,39 @@ const Orders = () => {
     }
   ]
 
+  // Initialize visible columns from localStorage or default to all
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('orders_column_preferences')
+      if (saved) {
+        const savedColumns = JSON.parse(saved)
+        // Validate saved columns exist in allColumns
+        const validColumns = savedColumns.filter(key => 
+          allColumns.some(col => col.key === key)
+        )
+        if (validColumns.length > 0) {
+          setVisibleColumns(validColumns)
+        } else {
+          // Default: all columns visible
+          setVisibleColumns(allColumns.map(col => col.key))
+        }
+      } else {
+        // Default: all columns visible
+        setVisibleColumns(allColumns.map(col => col.key))
+      }
+    } catch (error) {
+      console.error('Error loading column preferences:', error)
+      setVisibleColumns(allColumns.map(col => col.key))
+    }
+  }, [])
+
+  // Filter columns based on visibleColumns
+  const columns = allColumns.filter(col => visibleColumns.includes(col.key))
+
+  const handleColumnsChange = (newVisibleColumns) => {
+    setVisibleColumns(newVisibleColumns)
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -449,6 +485,12 @@ const Orders = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-64"
+          />
+          <ColumnSelector
+            columns={allColumns}
+            visibleColumns={visibleColumns}
+            onColumnsChange={handleColumnsChange}
+            storageKey="orders_column_preferences"
           />
           <Button
             variant="outline"

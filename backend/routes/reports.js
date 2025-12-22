@@ -323,6 +323,398 @@ router.get('/products', authenticate, async (req, res) => {
   }
 });
 
+// Sales report (detailed)
+router.get('/sales-detailed', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Sales summary
+    const summary = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as total_revenue,
+        AVG(CASE WHEN status = 'completed' THEN total_amount ELSE NULL END) as avg_order_value,
+        SUM(CASE WHEN status = 'completed' THEN discount_amount ELSE 0 END) as total_discounts,
+        SUM(CASE WHEN status = 'completed' THEN shipping_cost ELSE 0 END) as total_shipping
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+    `, [start, end]);
+
+    // Sales by day
+    const salesByDay = await db.pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as order_count,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as revenue,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [start, end]);
+
+    // Sales by payment method
+    const salesByPayment = await db.pool.query(`
+      SELECT 
+        payment_method,
+        COUNT(*) as order_count,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as revenue
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY payment_method
+      ORDER BY revenue DESC
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      summary: summary.rows[0],
+      sales_by_day: salesByDay.rows,
+      sales_by_payment: salesByPayment.rows
+    });
+  } catch (error) {
+    console.error('Get sales report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Orders report
+router.get('/orders', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Orders summary
+    const summary = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
+        COUNT(CASE WHEN status = 'shipped' THEN 1 END) as shipped
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+    `, [start, end]);
+
+    // Orders by status
+    const ordersByStatus = await db.pool.query(`
+      SELECT 
+        status,
+        COUNT(*) as count,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as total_amount
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY status
+      ORDER BY count DESC
+    `, [start, end]);
+
+    // Orders by day
+    const ordersByDay = await db.pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as order_count,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      summary: summary.rows[0],
+      orders_by_status: ordersByStatus.rows,
+      orders_by_day: ordersByDay.rows
+    });
+  } catch (error) {
+    console.error('Get orders report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Customers report
+router.get('/customers', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Customer summary
+    const summary = await db.pool.query(`
+      SELECT 
+        COUNT(DISTINCT c.id) as total_customers,
+        COUNT(DISTINCT CASE WHEN o.created_at >= $1::date AND o.created_at <= $2::date THEN c.id END) as active_customers,
+        COUNT(DISTINCT CASE WHEN o.status = 'completed' THEN c.id END) as customers_with_orders
+      FROM customers c
+      LEFT JOIN orders o ON c.id = o.customer_id
+      WHERE c.created_at <= $2::date
+    `, [start, end]);
+
+    // Top customers
+    const topCustomers = await db.pool.query(`
+      SELECT 
+        c.id,
+        c.name,
+        c.email,
+        c.phone,
+        COUNT(o.id) as order_count,
+        SUM(CASE WHEN o.status = 'completed' THEN o.total_amount ELSE 0 END) as total_spent,
+        MAX(o.created_at) as last_order_date
+      FROM customers c
+      LEFT JOIN orders o ON c.id = o.customer_id
+      WHERE o.created_at >= $1::date AND o.created_at <= $2::date
+      GROUP BY c.id, c.name, c.email, c.phone
+      HAVING COUNT(o.id) > 0
+      ORDER BY total_spent DESC
+      LIMIT 20
+    `, [start, end]);
+
+    // New customers by day
+    const newCustomersByDay = await db.pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as customer_count
+      FROM customers
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      summary: summary.rows[0],
+      top_customers: topCustomers.rows,
+      new_customers_by_day: newCustomersByDay.rows
+    });
+  } catch (error) {
+    console.error('Get customers report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Suppliers report
+router.get('/suppliers', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Supplier summary
+    const summary = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_suppliers,
+        COUNT(CASE WHEN is_active = true THEN 1 END) as active_suppliers
+      FROM suppliers
+    `);
+
+    // Top suppliers by purchase orders
+    const topSuppliers = await db.pool.query(`
+      SELECT 
+        s.id,
+        s.name,
+        s.contact_name,
+        s.email,
+        s.phone,
+        COUNT(po.id) as order_count,
+        SUM(CASE WHEN po.status = 'completed' THEN po.total_amount ELSE 0 END) as total_purchased,
+        MAX(po.created_at) as last_order_date
+      FROM suppliers s
+      LEFT JOIN purchase_orders po ON s.id = po.supplier_id
+      WHERE po.created_at >= $1::date AND po.created_at <= $2::date OR po.created_at IS NULL
+      GROUP BY s.id, s.name, s.contact_name, s.email, s.phone
+      ORDER BY total_purchased DESC NULLS LAST
+      LIMIT 20
+    `, [start, end]);
+
+    // Supplier debt summary
+    const supplierDebts = await db.pool.query(`
+      SELECT 
+        s.id,
+        s.name,
+        COALESCE(SUM(CASE WHEN dt.transaction_type = 'increase' THEN dt.amount ELSE -dt.amount END), 0) as debt_amount
+      FROM suppliers s
+      LEFT JOIN debt_transactions dt ON dt.entity_type = 'supplier' AND dt.entity_id = s.id
+      GROUP BY s.id, s.name
+      HAVING COALESCE(SUM(CASE WHEN dt.transaction_type = 'increase' THEN dt.amount ELSE -dt.amount END), 0) > 0
+      ORDER BY debt_amount DESC
+    `);
+
+    res.json({
+      period: { start, end },
+      summary: summary.rows[0],
+      top_suppliers: topSuppliers.rows,
+      supplier_debts: supplierDebts.rows
+    });
+  } catch (error) {
+    console.error('Get suppliers report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Employees report
+router.get('/employees', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Employee summary
+    const summary = await db.pool.query(`
+      SELECT 
+        COUNT(*) as total_employees,
+        COUNT(CASE WHEN is_active = true THEN 1 END) as active_employees
+      FROM users
+      WHERE role != 'admin'
+    `);
+
+    // Employee performance
+    const employeePerformance = await db.pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.full_name,
+        u.email,
+        u.role,
+        COUNT(DISTINCT o.id) as total_orders,
+        COUNT(DISTINCT CASE WHEN o.status = 'completed' THEN o.id END) as completed_orders,
+        ROUND(COUNT(DISTINCT CASE WHEN o.status = 'completed' THEN o.id END) * 100.0 / NULLIF(COUNT(DISTINCT o.id), 0), 1) as completion_rate,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total_amount ELSE 0 END), 0) as total_revenue,
+        AVG(CASE WHEN o.status = 'completed' THEN EXTRACT(EPOCH FROM (o.updated_at - o.created_at)) / 3600 ELSE NULL END) as avg_processing_hours
+      FROM users u
+      LEFT JOIN orders o ON (u.id = o.seller_id OR u.id = o.created_by)
+        AND o.created_at >= $1::date AND o.created_at <= $2::date
+      WHERE u.role != 'admin'
+      GROUP BY u.id, u.username, u.full_name, u.email, u.role
+      HAVING COUNT(DISTINCT o.id) > 0
+      ORDER BY total_revenue DESC
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      summary: summary.rows[0],
+      employee_performance: employeePerformance.rows
+    });
+  } catch (error) {
+    console.error('Get employees report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Sales channels report
+router.get('/sales-channels', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Sales by channel
+    const salesByChannel = await db.pool.query(`
+      SELECT 
+        COALESCE(sales_channel, 'Không xác định') as channel,
+        COUNT(*) as order_count,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as revenue,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
+        AVG(CASE WHEN status = 'completed' THEN total_amount ELSE NULL END) as avg_order_value
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY sales_channel
+      ORDER BY revenue DESC
+    `, [start, end]);
+
+    res.json({
+      period: { start, end },
+      sales_by_channel: salesByChannel.rows
+    });
+  } catch (error) {
+    console.error('Get sales channels report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Finance report
+router.get('/finance', authenticate, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const start = start_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const end = end_date || new Date().toISOString().split('T')[0];
+
+    // Revenue summary
+    const revenue = await db.pool.query(`
+      SELECT 
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as total_revenue,
+        SUM(CASE WHEN status = 'completed' THEN discount_amount ELSE 0 END) as total_discounts,
+        SUM(CASE WHEN status = 'completed' THEN shipping_cost ELSE 0 END) as total_shipping,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+    `, [start, end]);
+
+    // Expenses (purchase orders)
+    const expenses = await db.pool.query(`
+      SELECT 
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as total_expenses,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_purchase_orders
+      FROM purchase_orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+    `, [start, end]);
+
+    // Revenue by day
+    const revenueByDay = await db.pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as revenue,
+        SUM(CASE WHEN status = 'completed' THEN discount_amount ELSE 0 END) as discounts
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [start, end]);
+
+    // Payment methods
+    const paymentMethods = await db.pool.query(`
+      SELECT 
+        payment_method,
+        COUNT(*) as order_count,
+        SUM(CASE WHEN status = 'completed' THEN total_amount ELSE 0 END) as revenue
+      FROM orders
+      WHERE created_at >= $1::date AND created_at <= $2::date
+      GROUP BY payment_method
+      ORDER BY revenue DESC
+    `, [start, end]);
+
+    const revenueData = revenue.rows[0];
+    const expenseData = expenses.rows[0];
+    const profit = (parseFloat(revenueData.total_revenue || 0) - parseFloat(expenseData.total_expenses || 0));
+
+    res.json({
+      period: { start, end },
+      revenue: {
+        total: parseFloat(revenueData.total_revenue || 0),
+        discounts: parseFloat(revenueData.total_discounts || 0),
+        shipping: parseFloat(revenueData.total_shipping || 0),
+        orders: parseInt(revenueData.completed_orders || 0)
+      },
+      expenses: {
+        total: parseFloat(expenseData.total_expenses || 0),
+        orders: parseInt(expenseData.completed_purchase_orders || 0)
+      },
+      profit: profit,
+      profit_margin: revenueData.total_revenue > 0 
+        ? ((profit / parseFloat(revenueData.total_revenue)) * 100).toFixed(2)
+        : 0,
+      revenue_by_day: revenueByDay.rows,
+      payment_methods: paymentMethods.rows
+    });
+  } catch (error) {
+    console.error('Get finance report error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Export data (CSV format)
 router.get('/export', authenticate, async (req, res) => {
   try {

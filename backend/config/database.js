@@ -625,6 +625,32 @@ const init = async () => {
       )
     `);
 
+    // Notifications
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        link VARCHAR(500),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index for notifications
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC)
+    `);
+
     // Create default admin user if not exists
     const bcrypt = require('bcryptjs');
     const adminCheck = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);

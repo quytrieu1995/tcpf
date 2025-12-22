@@ -5,7 +5,6 @@ import {
   Package, 
   ShoppingCart, 
   Users, 
-  LogOut,
   Menu,
   X,
   FolderTree,
@@ -17,9 +16,11 @@ import {
   Sparkles
 } from 'lucide-react'
 import { useState } from 'react'
+import Notifications from './Notifications'
+import UserMenu from './UserMenu'
 
 const Layout = () => {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -172,7 +173,7 @@ const Layout = () => {
 
           {/* User info */}
           <div className="p-4 border-t border-gradient-to-r from-transparent via-slate-200 to-transparent bg-gradient-to-t from-slate-50 to-white">
-            <div className="flex items-center justify-between mb-3 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100/50">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white font-semibold text-sm">{user?.username?.charAt(0).toUpperCase()}</span>
@@ -183,13 +184,6 @@ const Layout = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={logout}
-              className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-pink-600 rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Đăng xuất
-            </button>
           </div>
         </div>
       </div>
@@ -205,13 +199,9 @@ const Layout = () => {
           >
             <Menu size={24} />
           </button>
-          <div className="ml-auto flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-3 text-sm text-slate-700 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200/60 shadow-sm">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-xs">{user?.username?.charAt(0).toUpperCase()}</span>
-              </div>
-              <span className="font-medium">Xin chào, <span className="font-bold text-slate-900">{user?.username}</span></span>
-            </div>
+          <div className="ml-auto flex items-center space-x-3">
+            <Notifications />
+            <UserMenu />
           </div>
         </div>
 

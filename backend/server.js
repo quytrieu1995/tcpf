@@ -72,6 +72,7 @@ app.use('/api/price-policies', require('./routes/price-policies'));
 app.use('/api/shipments', require('./routes/shipments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/address', require('./routes/address'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

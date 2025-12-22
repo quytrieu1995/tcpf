@@ -93,7 +93,7 @@ const ColumnSelector = ({ columns, visibleColumns, onColumnsChange, storageKey }
         <Settings2 className="w-4 h-4 mr-2" />
         Cột
         {visibleCount < totalCount && (
-          <span className="ml-2 bg-primary-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+          <span className="ml-2 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
             {visibleCount}
           </span>
         )}
@@ -106,29 +106,29 @@ const ColumnSelector = ({ columns, visibleColumns, onColumnsChange, storageKey }
         size="md"
       >
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b">
-            <div className="text-sm text-gray-600">
-              Đang hiển thị {visibleCount} / {totalCount} cột
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+            <div className="text-sm font-semibold text-slate-700">
+              Đang hiển thị <span className="text-blue-600">{visibleCount}</span> / <span className="text-slate-900">{totalCount}</span> cột
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={handleSelectAll}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
                 Chọn tất cả
               </button>
-              <span className="text-gray-300">|</span>
+              <span className="text-slate-300">|</span>
               <button
                 onClick={handleDeselectAll}
-                className="text-sm text-gray-600 hover:text-gray-700"
+                className="text-sm text-slate-600 hover:text-slate-700 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled={selectedColumns.length <= 1}
               >
                 Bỏ chọn tất cả
               </button>
-              <span className="text-gray-300">|</span>
+              <span className="text-slate-300">|</span>
               <button
                 onClick={handleReset}
-                className="text-sm text-gray-600 hover:text-gray-700"
+                className="text-sm text-slate-600 hover:text-slate-700 font-medium transition-colors"
               >
                 Đặt lại
               </button>
@@ -144,10 +144,10 @@ const ColumnSelector = ({ columns, visibleColumns, onColumnsChange, storageKey }
                 <label
                   key={column.key}
                   className={`
-                    flex items-center p-3 rounded-lg border cursor-pointer transition-colors
+                    flex items-center p-3.5 rounded-xl border-2 cursor-pointer transition-all duration-200
                     ${isSelected 
-                      ? 'bg-primary-50 border-primary-200' 
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
+                      ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                      : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                     }
                     ${isRequired ? 'opacity-60 cursor-not-allowed' : ''}
                   `}
@@ -157,16 +157,16 @@ const ColumnSelector = ({ columns, visibleColumns, onColumnsChange, storageKey }
                     checked={isSelected}
                     onChange={() => !isRequired && handleToggleColumn(column.key)}
                     disabled={isRequired}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2"
                   />
-                  <span className="ml-3 flex-1 text-sm font-medium text-gray-900">
+                  <span className={`ml-3 flex-1 text-sm font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
                     {column.header}
                   </span>
                   {isRequired && (
-                    <span className="text-xs text-gray-500">(Bắt buộc)</span>
+                    <span className="text-xs text-slate-500 font-medium">(Bắt buộc)</span>
                   )}
                   {isSelected && !isRequired && (
-                    <Check className="w-4 h-4 text-primary-600 ml-2" />
+                    <Check className="w-4 h-4 text-blue-600 ml-2" />
                   )}
                 </label>
               )

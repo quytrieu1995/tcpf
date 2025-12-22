@@ -5,7 +5,7 @@ const Input = forwardRef(({ label, error, helperText, className = '', ...props }
   return (
     <div className="w-full animate-slide-up">
       {label && (
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-slate-700 mb-2 tracking-tight">
           {label}
           {props.required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -15,10 +15,11 @@ const Input = forwardRef(({ label, error, helperText, className = '', ...props }
           ref={ref}
           className={`
             w-full px-4 py-3 border-2 rounded-xl
-            focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200
+            text-sm font-medium text-slate-900 placeholder:text-slate-400
+            focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all duration-200
             ${error 
-              ? 'border-red-300 bg-red-50/50 focus:ring-red-500 focus:border-red-500' 
-              : 'border-gray-200 bg-white/80 backdrop-blur-sm focus:ring-primary-500 focus:border-primary-500 hover:border-gray-300'
+              ? 'border-red-300 bg-red-50/80 focus:ring-red-500/50 focus:border-red-500 shadow-sm' 
+              : 'border-slate-200 bg-white/90 backdrop-blur-sm focus:ring-blue-500/50 focus:border-blue-500 hover:border-slate-300 shadow-sm hover:shadow-md focus:shadow-md'
             }
             ${className}
           `}

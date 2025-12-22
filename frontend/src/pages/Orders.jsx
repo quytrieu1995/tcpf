@@ -324,7 +324,7 @@ const Orders = () => {
       header: 'MÃ VẬN ĐƠN',
       sortable: true,
       render: (row) => (
-        <span className="font-semibold text-primary-600">{row.tracking_number || row.order_number || '-'}</span>
+        <span className="font-semibold text-blue-600">{row.tracking_number || row.order_number || '-'}</span>
       )
     },
     {
@@ -472,19 +472,19 @@ const Orders = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 relative z-10">
+    <div className="space-y-5 sm:space-y-6 relative z-10">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 drop-shadow-sm">Quản lý đơn hàng</h1>
-          <p className="text-gray-600 mt-1 text-sm sm:text-base">Theo dõi và quản lý tất cả đơn hàng</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Quản lý đơn hàng</h1>
+          <p className="text-slate-600 mt-1.5 text-sm sm:text-base font-medium">Theo dõi và quản lý tất cả đơn hàng</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Input
             type="text"
-            placeholder="Tìm kiếm..."
+            placeholder="Tìm kiếm đơn hàng, khách hàng..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-64"
+            className="w-64 sm:w-80"
           />
           <ColumnSelector
             columns={allColumns}
@@ -500,7 +500,7 @@ const Orders = () => {
             <Filter className="w-4 h-4 mr-2" />
             Lọc
             {hasActiveFilters && (
-              <span className="ml-2 bg-primary-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+              <span className="ml-2 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
                 {[statusFilter, deliveryStatusFilter, startDate, endDate, searchTerm].filter(Boolean).length}
               </span>
             )}
@@ -595,59 +595,64 @@ const Orders = () => {
           </div>
 
           {hasActiveFilters && (
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-gray-600">Bộ lọc đang áp dụng:</span>
+            <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-sm font-semibold text-slate-700">Bộ lọc đang áp dụng:</span>
               <div className="flex flex-wrap gap-2">
                 {statusFilter && (
-                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold border border-blue-200">
                     Trạng thái: {getStatusText(statusFilter)}
                     <button
                       onClick={() => setStatusFilter('')}
-                      className="ml-1 hover:text-primary-600"
+                      className="ml-1.5 hover:text-blue-900 transition-colors"
+                      aria-label="Xóa bộ lọc"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
                 {deliveryStatusFilter && (
-                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold border border-blue-200">
                     Giao hàng: {getDeliveryStatusText(deliveryStatusFilter)}
                     <button
                       onClick={() => setDeliveryStatusFilter('')}
-                      className="ml-1 hover:text-primary-600"
+                      className="ml-1.5 hover:text-blue-900 transition-colors"
+                      aria-label="Xóa bộ lọc"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
                 {startDate && (
-                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold border border-blue-200">
                     Từ: {format(new Date(startDate), 'dd/MM/yyyy')}
                     <button
                       onClick={() => setStartDate('')}
-                      className="ml-1 hover:text-primary-600"
+                      className="ml-1.5 hover:text-blue-900 transition-colors"
+                      aria-label="Xóa bộ lọc"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
                 {endDate && (
-                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold border border-blue-200">
                     Đến: {format(new Date(endDate), 'dd/MM/yyyy')}
                     <button
                       onClick={() => setEndDate('')}
-                      className="ml-1 hover:text-primary-600"
+                      className="ml-1.5 hover:text-blue-900 transition-colors"
+                      aria-label="Xóa bộ lọc"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 )}
                 {searchTerm && (
-                  <span className="inline-flex items-center px-2 py-1 bg-primary-100 text-primary-800 rounded text-xs">
+                  <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold border border-blue-200">
                     Tìm: {searchTerm}
                     <button
                       onClick={() => setSearchTerm('')}
-                      className="ml-1 hover:text-primary-600"
+                      className="ml-1.5 hover:text-blue-900 transition-colors"
+                      aria-label="Xóa bộ lọc"
                     >
                       <X className="w-3 h-3" />
                     </button>

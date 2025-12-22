@@ -69,33 +69,33 @@ const Dashboard = () => {
   }
 
   const StatCard = ({ title, value, icon: Icon, gradient, trend, trendValue, index = 0 }) => (
-    <div className="group relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up overflow-hidden"
+    <div className="group relative bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up overflow-hidden"
          style={{ animationDelay: `${index * 100}ms` }}>
       {/* Gradient overlay on hover */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-300`}></div>
       
       <div className="flex items-center justify-between relative z-10">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mt-2">{value}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{title}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2 truncate">{value}</p>
           {trend && trendValue && (
-            <div className={`mt-3 flex items-center text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`mt-2 flex items-center text-xs font-semibold ${trend > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {trend > 0 ? (
-                <ArrowUpRight className="w-4 h-4 mr-1" />
+                <ArrowUpRight className="w-3.5 h-3.5 mr-1" />
               ) : (
-                <ArrowDownRight className="w-4 h-4 mr-1" />
+                <ArrowDownRight className="w-3.5 h-3.5 mr-1" />
               )}
               <span>{Math.abs(trendValue)}% so với kỳ trước</span>
             </div>
           )}
         </div>
-        <div className={`p-4 rounded-2xl bg-gradient-to-br ${gradient} ml-4 shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={`p-3.5 rounded-xl bg-gradient-to-br ${gradient} ml-4 shadow-md transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 flex-shrink-0`}>
+          <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
       
       {/* Decorative corner */}
-      <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${gradient} opacity-10 rounded-bl-full`}></div>
+      <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.08] rounded-bl-[2rem]`}></div>
     </div>
   )
 
@@ -115,14 +115,15 @@ const Dashboard = () => {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="animate-slide-up">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gradient-primary mb-2">Dashboard</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Tổng quan về hoạt động bán hàng</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mb-2">Dashboard</h1>
+          <p className="text-slate-600 text-sm sm:text-base font-medium">Tổng quan về hoạt động bán hàng</p>
         </div>
         <div className="flex items-center gap-2 animate-slide-up" style={{ animationDelay: '100ms' }}>
           <Button
             variant={period === '7' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('7')}
+            className="font-semibold"
           >
             7 ngày
           </Button>
@@ -130,6 +131,7 @@ const Dashboard = () => {
             variant={period === '30' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('30')}
+            className="font-semibold"
           >
             30 ngày
           </Button>
@@ -137,6 +139,7 @@ const Dashboard = () => {
             variant={period === '90' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setPeriod('90')}
+            className="font-semibold"
           >
             90 ngày
           </Button>
@@ -213,8 +216,8 @@ const Dashboard = () => {
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Revenue by Day */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '200ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo ngày</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Doanh thu theo ngày</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={stats.revenueByDay}>
               <defs>
@@ -247,8 +250,8 @@ const Dashboard = () => {
         </div>
 
         {/* Revenue by Month */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '300ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Doanh thu theo tháng (6 tháng gần đây)</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Doanh thu theo tháng (6 tháng gần đây)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.revenueByMonth}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -272,8 +275,8 @@ const Dashboard = () => {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Orders by Status */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '400ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng theo trạng thái</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '400ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Đơn hàng theo trạng thái</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -296,8 +299,8 @@ const Dashboard = () => {
         </div>
 
         {/* Delivery Status */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '500ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Trạng thái giao hàng</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '500ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Trạng thái giao hàng</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -323,8 +326,8 @@ const Dashboard = () => {
       {/* Charts Row 3 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Payment Methods */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '600ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Phương thức thanh toán</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '600ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Phương thức thanh toán</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.paymentMethods} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
@@ -344,8 +347,8 @@ const Dashboard = () => {
         </div>
 
         {/* Sales Channels */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '700ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Kênh bán hàng</h2>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '700ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Kênh bán hàng</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={stats.salesChannels}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -366,8 +369,8 @@ const Dashboard = () => {
       </div>
 
       {/* Top Products */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '800ms' }}>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Sản phẩm bán chạy</h2>
+      <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '800ms' }}>
+        <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Sản phẩm bán chạy</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={stats.topProducts}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -387,34 +390,34 @@ const Dashboard = () => {
       </div>
 
       {/* Top Customers */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '900ms' }}>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Khách hàng hàng đầu</h2>
+      <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '900ms' }}>
+        <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Khách hàng hàng đầu</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50/80">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số đơn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tổng doanh thu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đã thanh toán</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Khách hàng</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Số đơn</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Tổng doanh thu</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Đã thanh toán</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {stats.topCustomers.map((customer) => (
-                <tr key={customer.id}>
+            <tbody className="bg-white divide-y divide-slate-200">
+              {stats.topCustomers.map((customer, idx) => (
+                <tr key={customer.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                    <div className="text-sm font-semibold text-slate-900">{customer.name}</div>
                     {customer.email && (
-                      <div className="text-xs text-gray-500">{customer.email}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{customer.email}</div>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700">
                     {formatNumber(customer.order_count)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">
                     {formatCurrency(customer.total_revenue)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">
                     {formatCurrency(customer.total_paid || 0)}
                   </td>
                 </tr>
@@ -425,44 +428,44 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Orders */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 overflow-x-auto card-hover animate-slide-up" style={{ animationDelay: '1000ms' }}>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Đơn hàng gần đây</h2>
+      <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 overflow-x-auto card-hover animate-slide-up" style={{ animationDelay: '1000ms' }}>
+        <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Đơn hàng gần đây</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50/80">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã đơn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tổng tiền</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thanh toán</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày tạo</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Mã đơn</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Khách hàng</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Tổng tiền</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Thanh toán</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Trạng thái</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Ngày tạo</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-slate-200">
               {stats.recentOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                     {order.order_number}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                     {order.customer_name || 'Khách vãng lai'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">
                     {formatCurrency(order.total_amount)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                     {order.payment_method === 'cash' ? 'Tiền mặt' :
                      order.payment_method === 'bank_transfer' ? 'Chuyển khoản' :
                      order.payment_method === 'credit' ? 'Trả chậm' :
                      order.payment_method === 'card' ? 'Thẻ' : order.payment_method || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
+                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                      order.status === 'completed' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                      order.status === 'processing' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
+                      'bg-amber-100 text-amber-800 border border-amber-200'
                     }`}>
                       {order.status === 'completed' ? 'Hoàn thành' :
                        order.status === 'processing' ? 'Đang xử lý' :
@@ -470,7 +473,7 @@ const Dashboard = () => {
                        'Chờ xử lý'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {format(new Date(order.created_at), 'dd/MM/yyyy HH:mm')}
                   </td>
                 </tr>
@@ -481,39 +484,39 @@ const Dashboard = () => {
       </div>
 
       {/* COD & Return Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1100ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê COD</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Tổng số đơn COD:</span>
-              <span className="text-sm font-semibold text-gray-900">{formatNumber(stats.codStats?.total_orders || 0)}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1100ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Thống kê COD</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <span className="text-sm font-medium text-slate-600">Tổng số đơn COD:</span>
+              <span className="text-sm font-bold text-slate-900">{formatNumber(stats.codStats?.total_orders || 0)}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Tổng giá trị COD:</span>
-              <span className="text-sm font-semibold text-gray-900">{formatCurrency(stats.codStats?.total_cod || 0)}</span>
+            <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <span className="text-sm font-medium text-slate-600">Tổng giá trị COD:</span>
+              <span className="text-sm font-bold text-slate-900">{formatCurrency(stats.codStats?.total_cod || 0)}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Đã thu:</span>
-              <span className="text-sm font-semibold text-green-600">{formatCurrency(stats.codStats?.total_paid || 0)}</span>
+            <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <span className="text-sm font-medium text-slate-600">Đã thu:</span>
+              <span className="text-sm font-bold text-emerald-600">{formatCurrency(stats.codStats?.total_paid || 0)}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">COD trung bình:</span>
-              <span className="text-sm font-semibold text-gray-900">{formatCurrency(stats.codStats?.avg_cod || 0)}</span>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm font-medium text-slate-600">COD trung bình:</span>
+              <span className="text-sm font-bold text-slate-900">{formatCurrency(stats.codStats?.avg_cod || 0)}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 p-4 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1200ms' }}>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê trả hàng</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Số đơn trả hàng:</span>
-              <span className="text-sm font-semibold text-gray-900">{formatNumber(stats.returnStats?.return_count || 0)}</span>
+        <div className="bg-white rounded-xl shadow-md border border-slate-200/60 p-5 sm:p-6 card-hover animate-slide-up" style={{ animationDelay: '1200ms' }}>
+          <h2 className="text-base font-bold text-slate-900 mb-5 tracking-tight">Thống kê trả hàng</h2>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <span className="text-sm font-medium text-slate-600">Số đơn trả hàng:</span>
+              <span className="text-sm font-bold text-slate-900">{formatNumber(stats.returnStats?.return_count || 0)}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Tổng phí trả hàng:</span>
-              <span className="text-sm font-semibold text-red-600">{formatCurrency(stats.returnStats?.total_return_fee || 0)}</span>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm font-medium text-slate-600">Tổng phí trả hàng:</span>
+              <span className="text-sm font-bold text-red-600">{formatCurrency(stats.returnStats?.total_return_fee || 0)}</span>
             </div>
           </div>
         </div>

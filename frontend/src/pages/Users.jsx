@@ -7,7 +7,7 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import Input from '../components/Input'
 
-const Users = () => {
+const UsersManagement = () => {
   const toast = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -230,7 +230,7 @@ const Users = () => {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Quản lý người dùng</h1>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Quản lý người dùng</h2>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Quản lý tài khoản và phân quyền người dùng</p>
         </div>
         <Button onClick={() => { resetForm(); setShowModal(true) }}>
@@ -381,5 +381,5 @@ const Users = () => {
   )
 }
 
-export default Users
+export default UsersManagement
 

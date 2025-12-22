@@ -64,7 +64,6 @@ const Layout = () => {
     {
       items: [
         { name: 'Kho hàng', href: '/inventory', icon: Warehouse, gradient: 'from-slate-500 to-gray-500' },
-        { name: 'Người dùng', href: '/users', icon: Users, gradient: 'from-emerald-500 to-teal-500' },
         { name: 'Báo cáo', href: '/reports', icon: FileText, gradient: 'from-blue-500 to-indigo-500' },
       ]
     },

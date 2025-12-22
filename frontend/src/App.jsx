@@ -18,7 +18,7 @@ import StockAdjustments from './pages/StockAdjustments'
 import ShippingCarriers from './pages/ShippingCarriers'
 import Shipments from './pages/Shipments'
 import CreateOrder from './pages/CreateOrder'
-import Users from './pages/Users'
+import Settings from './pages/Settings'
 import Layout from './components/Layout'
 
 function App() {
@@ -55,7 +55,7 @@ function App() {
             <Route path="shipping-carriers" element={<ShippingCarriers />} />
             <Route path="shipments" element={<Shipments />} />
             <Route path="orders/create" element={<CreateOrder />} />
-            <Route path="users" element={<Users />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="reports" element={<Reports />} />
             </Route>
           </Routes>

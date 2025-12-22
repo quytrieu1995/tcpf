@@ -46,8 +46,7 @@ const UserMenu = () => {
       label: 'Cài đặt',
       onClick: () => {
         setIsOpen(false)
-        // Navigate to settings page when created
-        // navigate('/settings')
+        navigate('/settings')
       },
       divider: true
     },

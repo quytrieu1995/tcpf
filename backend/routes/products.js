@@ -36,8 +36,25 @@ router.get('/', authenticate, async (req, res) => {
     const result = await db.pool.query(query, params);
     const countResult = await db.pool.query('SELECT COUNT(*) FROM products');
     
+    // Parse images JSONB to array for each product
+    const products = result.rows.map(product => {
+      let images = [];
+      if (product.images) {
+        try {
+          images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+        } catch (e) {
+          images = [];
+        }
+      }
+      // Fallback to image_url if images array is empty
+      if (images.length === 0 && product.image_url) {
+        images = [product.image_url];
+      }
+      return { ...product, images };
+    });
+    
     res.json({
-      products: result.rows,
+      products: products,
       total: parseInt(countResult.rows[0].count),
       page: parseInt(page),
       limit: parseInt(limit)
@@ -69,7 +86,23 @@ router.get('/:id', authenticate, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    res.json(result.rows[0]);
+    
+    // Parse images JSONB to array
+    const product = result.rows[0];
+    let images = [];
+    if (product.images) {
+      try {
+        images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+      } catch (e) {
+        images = [];
+      }
+    }
+    // Fallback to image_url if images array is empty
+    if (images.length === 0 && product.image_url) {
+      images = [product.image_url];
+    }
+    
+    res.json({ ...product, images });
   } catch (error) {
     console.error('Get product error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -88,7 +121,7 @@ router.post('/', authenticate, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold } = req.body;
+    const { name, description, price, stock, category, category_id, image_url, images, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold } = req.body;
     
     // Validate required fields
     if (!name || !price) {
@@ -101,9 +134,17 @@ router.post('/', authenticate, [
       return res.status(503).json({ message: 'Database connection unavailable' });
     }
 
+    // Process images: use images array if provided, otherwise fallback to image_url
+    let imagesArray = [];
+    if (images && Array.isArray(images) && images.length > 0) {
+      imagesArray = images;
+    } else if (image_url) {
+      imagesArray = [image_url];
+    }
+
     const result = await db.pool.query(
-      'INSERT INTO products (name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
-      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, image_url || null, sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10]
+      'INSERT INTO products (name, description, price, stock, category, category_id, image_url, images, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
+      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, imagesArray[0] || image_url || null, JSON.stringify(imagesArray), sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10]
     );
 
     res.status(201).json(result.rows[0]);
@@ -137,7 +178,7 @@ router.post('/', authenticate, [
 // Update product
 router.put('/:id', authenticate, async (req, res) => {
   try {
-    const { name, description, price, stock, category, category_id, image_url, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active } = req.body;
+    const { name, description, price, stock, category, category_id, image_url, images, sku, barcode, cost_price, weight, supplier_id, low_stock_threshold, is_active } = req.body;
     
     // Validate required fields
     if (!name || !price) {
@@ -150,9 +191,17 @@ router.put('/:id', authenticate, async (req, res) => {
       return res.status(503).json({ message: 'Database connection unavailable' });
     }
 
+    // Process images: use images array if provided, otherwise fallback to image_url
+    let imagesArray = [];
+    if (images && Array.isArray(images) && images.length > 0) {
+      imagesArray = images;
+    } else if (image_url) {
+      imagesArray = [image_url];
+    }
+
     const result = await db.pool.query(
-      'UPDATE products SET name = $1, description = $2, price = $3, stock = $4, category = $5, category_id = $6, image_url = $7, sku = $8, barcode = $9, cost_price = $10, weight = $11, supplier_id = $12, low_stock_threshold = $13, is_active = $14, updated_at = CURRENT_TIMESTAMP WHERE id = $15 RETURNING *',
-      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, image_url || null, sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10, is_active !== false, req.params.id]
+      'UPDATE products SET name = $1, description = $2, price = $3, stock = $4, category = $5, category_id = $6, image_url = $7, images = $8, sku = $9, barcode = $10, cost_price = $11, weight = $12, supplier_id = $13, low_stock_threshold = $14, is_active = $15, updated_at = CURRENT_TIMESTAMP WHERE id = $16 RETURNING *',
+      [name, description || null, parseFloat(price), parseInt(stock) || 0, category || null, category_id || null, imagesArray[0] || image_url || null, JSON.stringify(imagesArray), sku || null, barcode || null, cost_price ? parseFloat(cost_price) : null, weight ? parseFloat(weight) : null, supplier_id || null, low_stock_threshold || 10, is_active !== false, req.params.id]
     );
 
     if (result.rows.length === 0) {

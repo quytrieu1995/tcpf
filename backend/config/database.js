@@ -163,7 +163,8 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10, 2),
       ADD COLUMN IF NOT EXISTS weight DECIMAL(10, 2),
       ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER DEFAULT 10
+      ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb
     `);
 
     // Promotions/Discounts table

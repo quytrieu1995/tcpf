@@ -8,6 +8,7 @@ import Button from '../components/Button'
 import DataTable from '../components/DataTable'
 import { SkeletonCard } from '../components/Skeleton'
 import BackendConnectionCheck from '../components/BackendConnectionCheck'
+import ImageUpload from '../components/ImageUpload'
 
 const Products = () => {
   const toast = useToast()
@@ -26,6 +27,7 @@ const Products = () => {
     category: '',
     category_id: null,
     image_url: '',
+    images: [],
     sku: '',
     barcode: '',
     cost_price: '',
@@ -134,7 +136,7 @@ const Products = () => {
       }
       setShowModal(false)
       setEditingProduct(null)
-      setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
+      setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', images: [], sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
       setFormErrors({})
       fetchProducts()
     } catch (error) {
@@ -165,6 +167,19 @@ const Products = () => {
 
   const handleEdit = (product) => {
     setEditingProduct(product)
+    // Parse images from JSONB or use image_url as fallback
+    let images = []
+    if (product.images) {
+      try {
+        images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images
+      } catch (e) {
+        images = []
+      }
+    }
+    if (images.length === 0 && product.image_url) {
+      images = [product.image_url]
+    }
+    
     setFormData({
       name: product.name,
       description: product.description || '',
@@ -173,6 +188,7 @@ const Products = () => {
       category: product.category || '',
       category_id: product.category_id,
       image_url: product.image_url || '',
+      images: images,
       sku: product.sku || '',
       barcode: product.barcode || '',
       cost_price: product.cost_price || '',
@@ -209,15 +225,29 @@ const Products = () => {
       header: 'Sản phẩm',
       sortable: true,
       accessor: (row) => row.name,
-      render: (row) => (
-        <div className="flex items-center">
-          {row.image_url ? (
-            <img src={row.image_url} alt={row.name} className="w-12 h-12 object-cover rounded-lg mr-3" />
-          ) : (
-            <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
-              <ImageIcon className="w-6 h-6 text-gray-400" />
-            </div>
-          )}
+      render: (row) => {
+        // Get first image from images array or fallback to image_url
+        let imageUrl = null
+        if (row.images) {
+          try {
+            const images = typeof row.images === 'string' ? JSON.parse(row.images) : row.images
+            imageUrl = images.length > 0 ? images[0] : row.image_url
+          } catch (e) {
+            imageUrl = row.image_url
+          }
+        } else {
+          imageUrl = row.image_url
+        }
+        
+        return (
+          <div className="flex items-center">
+            {imageUrl ? (
+              <img src={imageUrl} alt={row.name} className="w-12 h-12 object-cover rounded-lg mr-3" />
+            ) : (
+              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center mr-3">
+                <ImageIcon className="w-6 h-6 text-gray-400" />
+              </div>
+            )}
           <div>
             <div className="font-semibold text-gray-900">{row.name}</div>
             {row.sku && (
@@ -230,7 +260,8 @@ const Products = () => {
             )}
           </div>
         </div>
-      )
+        )
+      }
     },
     {
       key: 'price',
@@ -351,7 +382,7 @@ const Products = () => {
           <Button
             onClick={() => {
               setEditingProduct(null)
-              setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
+              setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', images: [], sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
               setFormErrors({})
               setShowModal(true)
             }}
@@ -374,11 +405,25 @@ const Products = () => {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-          {products.map((product) => (
+          {products.map((product) => {
+            // Get first image from images array or fallback to image_url
+            let imageUrl = null
+            if (product.images) {
+              try {
+                const images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images
+                imageUrl = images.length > 0 ? images[0] : product.image_url
+              } catch (e) {
+                imageUrl = product.image_url
+              }
+            } else {
+              imageUrl = product.image_url
+            }
+            
+            return (
             <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden card-hover">
               <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                {imageUrl ? (
+                  <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="w-16 h-16 text-gray-400" />
@@ -424,7 +469,8 @@ const Products = () => {
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -441,7 +487,7 @@ const Products = () => {
         onClose={() => {
           setShowModal(false)
           setEditingProduct(null)
-          setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
+          setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', images: [], sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
           setFormErrors({})
         }}
         title={editingProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
@@ -537,12 +583,17 @@ const Products = () => {
             </select>
           </div>
 
-          <Input
-            label="URL hình ảnh"
-            type="url"
-            value={formData.image_url}
-            onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-            helperText="Link hình ảnh sản phẩm"
+          <ImageUpload
+            images={formData.images || []}
+            onChange={(images) => {
+              setFormData({ 
+                ...formData, 
+                images: images,
+                image_url: images.length > 0 ? images[0] : '' // Keep image_url for backward compatibility
+              })
+            }}
+            maxImages={5}
+            maxSizeMB={5}
           />
           
           <Input
@@ -561,7 +612,7 @@ const Products = () => {
               onClick={() => {
                 setShowModal(false)
                 setEditingProduct(null)
-                setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
+                setFormData({ name: '', description: '', price: '', stock: '', category: '', category_id: null, image_url: '', images: [], sku: '', barcode: '', cost_price: '', weight: '', supplier_id: null, low_stock_threshold: 10 })
                 setFormErrors({})
               }}
               className="flex-1"

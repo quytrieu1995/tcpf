@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const db = require('./config/database');
 
 dotenv.config();
@@ -43,6 +44,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (uploaded images)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Logging middleware for debugging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, {
@@ -73,6 +77,7 @@ app.use('/api/shipments', require('./routes/shipments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/address', require('./routes/address'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/upload', require('./routes/upload'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

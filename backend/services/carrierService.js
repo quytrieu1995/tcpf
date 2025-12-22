@@ -39,6 +39,12 @@ class CarrierService {
         case 'jnt':
           statusData = await this.syncJNT(shipmentData);
           break;
+        case 'shopee_express':
+          statusData = await this.syncShopeeExpress(shipmentData);
+          break;
+        case 'vnpost':
+          statusData = await this.syncVnPost(shipmentData);
+          break;
         case 'manual':
         default:
           throw new Error('Manual tracking - no API sync available');
@@ -153,6 +159,12 @@ class CarrierService {
         case 'jnt':
           result = await this.testJNT(carrierData);
           break;
+        case 'shopee_express':
+          result = await this.testShopeeExpress(carrierData);
+          break;
+        case 'vnpost':
+          result = await this.testVnPost(carrierData);
+          break;
         default:
           throw new Error('Unsupported API type');
       }
@@ -177,12 +189,16 @@ class CarrierService {
   // Giao Hàng Nhanh (GHN) Integration
   async syncGHN(shipmentData) {
     try {
-      const config = shipmentData.api_config || {};
+      const config = typeof shipmentData.api_config === 'string' 
+        ? JSON.parse(shipmentData.api_config || '{}') 
+        : (shipmentData.api_config || {});
+      
       const response = await axios.get(
         `${shipmentData.api_endpoint}/v2/shipping-order/detail`,
         {
           params: {
-            order_code: shipmentData.tracking_number
+            order_code: shipmentData.tracking_number,
+            shop_id: config.shop_id
           },
           headers: {
             'Token': shipmentData.api_key,
@@ -276,13 +292,18 @@ class CarrierService {
   // Giao Hàng Tiết Kiệm (GHTK) Integration
   async syncGHTK(shipmentData) {
     try {
+      const config = typeof shipmentData.api_config === 'string' 
+        ? JSON.parse(shipmentData.api_config || '{}') 
+        : (shipmentData.api_config || {});
+      
       const response = await axios.get(
         `${shipmentData.api_endpoint}/services/shipment/v2/${shipmentData.tracking_number}`,
         {
           headers: {
             'Token': shipmentData.api_key,
             'Content-Type': 'application/json'
-          }
+          },
+          params: config.shop_id ? { shop_id: config.shop_id } : {}
         }
       );
 
@@ -322,7 +343,10 @@ class CarrierService {
   // J&T Express Integration
   async syncJNT(shipmentData) {
     try {
-      const config = shipmentData.api_config || {};
+      const config = typeof shipmentData.api_config === 'string' 
+        ? JSON.parse(shipmentData.api_config || '{}') 
+        : (shipmentData.api_config || {});
+      
       const apiEndpoint = shipmentData.api_endpoint || 'https://api.jtexpress.vn';
       
       // J&T API thường sử dụng POST với body
@@ -430,6 +454,157 @@ class CarrierService {
         return { success: true, message: 'Connection successful' };
       } catch (altError) {
         return { success: false, message: error.message || 'Connection failed' };
+      }
+    }
+  }
+
+  // Shopee Express Integration
+  async syncShopeeExpress(shipmentData) {
+    try {
+      const config = typeof shipmentData.api_config === 'string' 
+        ? JSON.parse(shipmentData.api_config || '{}') 
+        : (shipmentData.api_config || {});
+      
+      const apiEndpoint = shipmentData.api_endpoint || 'https://open-api.shopee.vn';
+      
+      // Shopee Express API - Get tracking info
+      const response = await axios.post(
+        `${apiEndpoint}/api/v1/logistics/get_tracking_number`,
+        {
+          tracking_number: shipmentData.tracking_number,
+          partner_id: config.partner_id,
+          shop_id: config.shop_id
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${shipmentData.api_key}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const data = response.data?.response || response.data;
+      if (!data) {
+        throw new Error('Invalid response from Shopee Express API');
+      }
+
+      return {
+        status: data.status || 'unknown',
+        message: data.status_description || data.message || '',
+        events: data.tracking_details || data.tracking_events || []
+      };
+    } catch (error) {
+      console.error('Shopee Express sync error:', error);
+      throw new Error(`Shopee Express API error: ${error.message}`);
+    }
+  }
+
+  async testShopeeExpress(carrierData) {
+    try {
+      const config = typeof carrierData.api_config === 'string' 
+        ? JSON.parse(carrierData.api_config || '{}') 
+        : (carrierData.api_config || {});
+      
+      const apiEndpoint = carrierData.api_endpoint || 'https://open-api.shopee.vn';
+      
+      // Test connection by getting shop info
+      const response = await axios.post(
+        `${apiEndpoint}/api/v1/shop/get_shop_info`,
+        {
+          partner_id: config.partner_id,
+          shop_id: config.shop_id
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${carrierData.api_key}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return { success: true, message: 'Connection successful' };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.error || error.message || 'Connection failed' };
+    }
+  }
+
+  // VnPost (Vietnam Post) Integration
+  async syncVnPost(shipmentData) {
+    try {
+      const config = typeof shipmentData.api_config === 'string' 
+        ? JSON.parse(shipmentData.api_config || '{}') 
+        : (shipmentData.api_config || {});
+      
+      const apiEndpoint = shipmentData.api_endpoint || 'https://api.vnpost.vn';
+      
+      // VnPost API - Get tracking info
+      const response = await axios.get(
+        `${apiEndpoint}/api/v1/tracking`,
+        {
+          params: {
+            tracking_number: shipmentData.tracking_number
+          },
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`${shipmentData.api_key}:${shipmentData.api_secret || ''}`).toString('base64')}`,
+            'Content-Type': 'application/json'
+          },
+          auth: {
+            username: shipmentData.api_key,
+            password: shipmentData.api_secret || ''
+          }
+        }
+      );
+
+      const data = response.data?.data || response.data;
+      if (!data) {
+        throw new Error('Invalid response from VnPost API');
+      }
+
+      return {
+        status: data.status || 'unknown',
+        message: data.status_description || data.message || '',
+        events: data.tracking_history || data.tracking_details || []
+      };
+    } catch (error) {
+      console.error('VnPost sync error:', error);
+      throw new Error(`VnPost API error: ${error.message}`);
+    }
+  }
+
+  async testVnPost(carrierData) {
+    try {
+      const apiEndpoint = carrierData.api_endpoint || 'https://api.vnpost.vn';
+      
+      // Test connection by authenticating
+      const response = await axios.post(
+        `${apiEndpoint}/api/v1/auth/login`,
+        {
+          username: carrierData.api_key,
+          password: carrierData.api_secret || ''
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return { success: true, message: 'Connection successful' };
+    } catch (error) {
+      // Try alternative test endpoint
+      try {
+        const altResponse = await axios.get(
+          `${carrierData.api_endpoint || 'https://api.vnpost.vn'}/api/v1/account/info`,
+          {
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${carrierData.api_key}:${carrierData.api_secret || ''}`).toString('base64')}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        return { success: true, message: 'Connection successful' };
+      } catch (altError) {
+        return { success: false, message: error.response?.data?.message || error.message || 'Connection failed' };
       }
     }
   }

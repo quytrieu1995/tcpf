@@ -26,6 +26,69 @@ const ShippingCarriers = () => {
     api_secret: '',
     api_config: {}
   })
+
+  const carrierConfigs = {
+    'ghn': {
+      name: 'Giao Hàng Nhanh (GHN)',
+      defaultEndpoint: 'https://dev-online-gateway.ghn.vn',
+      fields: [
+        { key: 'shop_id', label: 'Shop ID', type: 'text', required: true },
+        { key: 'client_id', label: 'Client ID', type: 'text', required: false }
+      ],
+      helpText: 'Lấy Token và Shop ID từ https://api.ghn.vn'
+    },
+    'jnt': {
+      name: 'J&T Express',
+      defaultEndpoint: 'https://api.jtexpress.vn',
+      fields: [
+        { key: 'username', label: 'Username', type: 'text', required: true },
+        { key: 'customer_code', label: 'Customer Code', type: 'text', required: false }
+      ],
+      helpText: 'Lấy API Key từ https://jtexpress.vn'
+    },
+    'ghtk': {
+      name: 'Giao Hàng Tiết Kiệm (GHTK)',
+      defaultEndpoint: 'https://services.giaohangtietkiem.vn',
+      fields: [
+        { key: 'shop_id', label: 'Shop ID', type: 'text', required: false }
+      ],
+      helpText: 'Lấy Token từ https://giaohangtietkiem.vn'
+    },
+    'viettel_post': {
+      name: 'Viettel Post',
+      defaultEndpoint: 'https://api.viettelpost.vn',
+      fields: [
+        { key: 'username', label: 'Username', type: 'text', required: true },
+        { key: 'password', label: 'Password', type: 'password', required: true }
+      ],
+      helpText: 'Sử dụng thông tin đăng nhập Viettel Post'
+    },
+    'shopee_express': {
+      name: 'Shopee Express',
+      defaultEndpoint: 'https://open-api.shopee.vn',
+      fields: [
+        { key: 'partner_id', label: 'Partner ID', type: 'text', required: true },
+        { key: 'shop_id', label: 'Shop ID', type: 'text', required: true }
+      ],
+      helpText: 'Lấy thông tin từ Shopee Partner Center'
+    },
+    'vnpost': {
+      name: 'VnPost (Vietnam Post)',
+      defaultEndpoint: 'https://api.vnpost.vn',
+      fields: [
+        { key: 'username', label: 'Username', type: 'text', required: true },
+        { key: 'password', label: 'Password', type: 'password', required: true },
+        { key: 'customer_code', label: 'Customer Code', type: 'text', required: false }
+      ],
+      helpText: 'Sử dụng thông tin đăng nhập VnPost'
+    },
+    'manual': {
+      name: 'Thủ công',
+      defaultEndpoint: '',
+      fields: [],
+      helpText: 'Không sử dụng API, quản lý thủ công'
+    }
+  }
   const [testingConnection, setTestingConnection] = useState(false)
   const [showApiConfig, setShowApiConfig] = useState(false)
 
@@ -49,11 +112,21 @@ const ShippingCarriers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      // Auto-fill name if not provided and api_type is selected
+      if (!formData.name && formData.api_type && formData.api_type !== 'manual') {
+        formData.name = carrierConfigs[formData.api_type]?.name || formData.api_type
+      }
+
+      const submitData = {
+        ...formData,
+        api_config: formData.api_config || {}
+      }
+
       if (editingCarrier) {
-        await api.put(`/shipping/${editingCarrier.id}`, formData)
+        await api.put(`/shipping/${editingCarrier.id}`, submitData)
         toast.success('Cập nhật đơn vị vận chuyển thành công!')
       } else {
-        await api.post('/shipping', formData)
+        await api.post('/shipping', submitData)
         toast.success('Tạo đơn vị vận chuyển thành công!')
       }
       setShowModal(false)
@@ -67,6 +140,10 @@ const ShippingCarriers = () => {
 
   const handleEdit = (carrier) => {
     setEditingCarrier(carrier)
+    const apiConfig = typeof carrier.api_config === 'string' 
+      ? JSON.parse(carrier.api_config || '{}') 
+      : (carrier.api_config || {})
+    
     setFormData({
       name: carrier.name || '',
       description: carrier.description || '',
@@ -78,21 +155,61 @@ const ShippingCarriers = () => {
       api_endpoint: carrier.api_endpoint || '',
       api_key: carrier.api_key || '',
       api_secret: carrier.api_secret || '',
-      api_config: carrier.api_config || {}
+      api_config: apiConfig
     })
     setShowApiConfig(!!carrier.api_type)
     setShowModal(true)
   }
 
+  const handleApiTypeChange = (apiType) => {
+    const config = carrierConfigs[apiType]
+    const newFormData = {
+      ...formData,
+      api_type: apiType,
+      api_endpoint: config?.defaultEndpoint || '',
+      api_config: {}
+    }
+    setFormData(newFormData)
+    setShowApiConfig(apiType !== 'manual' && apiType !== '')
+  }
+
   const handleTestConnection = async (carrierId) => {
     try {
       setTestingConnection(true)
-      const response = await api.post(`/shipping/${carrierId}/test-connection`)
-      if (response.data.success) {
-        toast.success('Kết nối thành công!')
-        fetchCarriers()
+      
+      // If editing existing carrier, use its ID
+      if (carrierId) {
+        const response = await api.post(`/shipping/${carrierId}/test-connection`)
+        if (response.data.success) {
+          toast.success('Kết nối thành công!')
+          fetchCarriers()
+        } else {
+          toast.error(`Kết nối thất bại: ${response.data.message}`)
+        }
       } else {
-        toast.error(`Kết nối thất bại: ${response.data.message}`)
+        // For new carrier, save first then test
+        if (!formData.name || !formData.cost) {
+          toast.error('Vui lòng điền đầy đủ thông tin cơ bản trước')
+          return
+        }
+        
+        // Save carrier first
+        const saveResponse = await api.post('/shipping', {
+          ...formData,
+          api_config: formData.api_config || {}
+        })
+        
+        const newCarrierId = saveResponse.data.id
+        
+        // Then test connection
+        const testResponse = await api.post(`/shipping/${newCarrierId}/test-connection`)
+        if (testResponse.data.success) {
+          toast.success('Kết nối thành công!')
+          setEditingCarrier(saveResponse.data)
+          fetchCarriers()
+        } else {
+          toast.error(`Kết nối thất bại: ${testResponse.data.message}`)
+        }
       }
     } catch (error) {
       console.error('Error testing connection:', error)
@@ -142,6 +259,19 @@ const ShippingCarriers = () => {
     })
     setEditingCarrier(null)
     setShowApiConfig(false)
+  }
+
+  const getCarrierIcon = (apiType) => {
+    const icons = {
+      'ghn': '🚚',
+      'jnt': '📦',
+      'ghtk': '🚛',
+      'viettel_post': '📮',
+      'shopee_express': '🛒',
+      'vnpost': '📬',
+      'manual': '✋'
+    }
+    return icons[apiType] || '🚚'
   }
 
   const formatCurrency = (value) => {
@@ -196,12 +326,30 @@ const ShippingCarriers = () => {
       )
     },
     {
+      key: 'api_type',
+      header: 'Loại',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          {row.api_type ? (
+            <>
+              <span className="text-lg">{getCarrierIcon(row.api_type)}</span>
+              <span className="text-xs text-gray-600">
+                {carrierConfigs[row.api_type]?.name || row.api_type}
+              </span>
+            </>
+          ) : (
+            <span className="text-gray-400 text-xs">Thủ công</span>
+          )}
+        </div>
+      )
+    },
+    {
       key: 'is_connected',
       header: 'Kết nối',
       render: (row) => (
         <div className="flex items-center gap-2">
           {row.is_connected ? (
-            <span className="flex items-center text-green-600 text-xs">
+            <span className="flex items-center text-green-600 text-xs font-medium">
               <CheckCircle className="w-4 h-4 mr-1" />
               Đã kết nối
             </span>
@@ -375,72 +523,119 @@ const ShippingCarriers = () => {
             </div>
 
             {showApiConfig && (
-              <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+              <div className="space-y-4 bg-gradient-to-br from-blue-50/50 to-purple-50/50 p-4 rounded-xl border border-blue-100/50">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Loại API
+                    Đơn vị vận chuyển <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.api_type}
-                    onChange={(e) => setFormData({ ...formData, api_type: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(e) => handleApiTypeChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="">Chọn loại API</option>
+                    <option value="">Chọn đơn vị vận chuyển</option>
                     <option value="ghn">Giao Hàng Nhanh (GHN)</option>
-                    <option value="viettel_post">Viettel Post</option>
-                    <option value="ghtk">Giao Hàng Tiết Kiệm (GHTK)</option>
                     <option value="jnt">J&T Express</option>
+                    <option value="ghtk">Giao Hàng Tiết Kiệm (GHTK)</option>
+                    <option value="viettel_post">Viettel Post</option>
+                    <option value="shopee_express">Shopee Express</option>
+                    <option value="vnpost">VnPost (Vietnam Post)</option>
                     <option value="manual">Thủ công (Không có API)</option>
                   </select>
                 </div>
 
                 {formData.api_type && formData.api_type !== 'manual' && (
                   <>
+                    {carrierConfigs[formData.api_type]?.helpText && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-700">
+                          <span className="font-semibold">💡 Hướng dẫn:</span> {carrierConfigs[formData.api_type].helpText}
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        API Endpoint
+                        API Endpoint <span className="text-red-500">*</span>
                       </label>
                       <Input
                         type="text"
                         value={formData.api_endpoint}
                         onChange={(e) => setFormData({ ...formData, api_endpoint: e.target.value })}
-                        placeholder="https://api.example.com"
+                        placeholder={carrierConfigs[formData.api_type]?.defaultEndpoint || "https://api.example.com"}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        API Key
+                        API Key / Token <span className="text-red-500">*</span>
                       </label>
                       <Input
                         type="password"
                         value={formData.api_key}
                         onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-                        placeholder="Nhập API Key"
+                        placeholder="Nhập API Key hoặc Token"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        API Secret (Nếu có)
-                      </label>
-                      <Input
-                        type="password"
-                        value={formData.api_secret}
-                        onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
-                        placeholder="Nhập API Secret"
-                      />
-                    </div>
-                    {editingCarrier && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleTestConnection(editingCarrier.id)}
-                        disabled={testingConnection || !formData.api_endpoint || !formData.api_key}
-                        className="w-full"
-                      >
-                        <Link2 className="w-4 h-4 mr-2" />
-                        {testingConnection ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
-                      </Button>
+                    {formData.api_type === 'viettel_post' || formData.api_type === 'vnpost' ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          API Secret / Password
+                        </label>
+                        <Input
+                          type="password"
+                          value={formData.api_secret}
+                          onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                          placeholder="Nhập API Secret hoặc Password"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          API Secret (Nếu có)
+                        </label>
+                        <Input
+                          type="password"
+                          value={formData.api_secret}
+                          onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                          placeholder="Nhập API Secret (tùy chọn)"
+                        />
+                      </div>
                     )}
+
+                    {/* Carrier-specific fields */}
+                    {carrierConfigs[formData.api_type]?.fields && carrierConfigs[formData.api_type].fields.length > 0 && (
+                      <div className="space-y-3 pt-2 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-600 uppercase">Cấu hình bổ sung</p>
+                        {carrierConfigs[formData.api_type].fields.map((field) => (
+                          <div key={field.key}>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              {field.label} {field.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <Input
+                              type={field.type}
+                              value={formData.api_config?.[field.key] || ''}
+                              onChange={(e) => {
+                                const newConfig = { ...formData.api_config, [field.key]: e.target.value }
+                                setFormData({ ...formData, api_config: newConfig })
+                              }}
+                              placeholder={`Nhập ${field.label.toLowerCase()}`}
+                              required={field.required}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleTestConnection(editingCarrier?.id)}
+                      disabled={testingConnection || !formData.api_endpoint || !formData.api_key}
+                      className="w-full bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                    >
+                      <Link2 className="w-4 h-4 mr-2" />
+                      {testingConnection ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
+                    </Button>
                   </>
                 )}
               </div>

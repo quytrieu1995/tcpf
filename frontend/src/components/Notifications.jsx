@@ -36,10 +36,30 @@ const Notifications = () => {
     try {
       setLoading(true)
       const response = await api.get('/notifications')
-      setNotifications(response.data.notifications || response.data || [])
-      setUnreadCount(response.data.unread_count || response.data.filter(n => !n.is_read).length || 0)
+      
+      // Handle different response formats
+      let notificationsList = []
+      let unreadCountValue = 0
+      
+      if (Array.isArray(response.data)) {
+        // Direct array response
+        notificationsList = response.data
+        unreadCountValue = response.data.filter(n => !n.is_read).length
+      } else if (response.data && Array.isArray(response.data.notifications)) {
+        // Wrapped object with notifications array
+        notificationsList = response.data.notifications
+        unreadCountValue = response.data.unread_count || notificationsList.filter(n => !n.is_read).length
+      } else {
+        notificationsList = []
+        unreadCountValue = 0
+      }
+      
+      setNotifications(notificationsList)
+      setUnreadCount(unreadCountValue)
     } catch (error) {
       console.error('Error fetching notifications:', error)
+      setNotifications([])
+      setUnreadCount(0)
     } finally {
       setLoading(false)
     }

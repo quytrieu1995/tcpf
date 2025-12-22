@@ -122,15 +122,35 @@ const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) =>
       {/* Image Preview Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {images.map((imageUrl, index) => (
+          {images.map((imageUrl, index) => {
+            // Handle relative URLs - convert to full URL if needed
+            const getImageSrc = (url) => {
+              if (!url) return ''
+              // If it's already a full URL (http/https), return as is
+              if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url
+              }
+              // If it's a relative URL starting with /, use it as is (will be served by backend)
+              if (url.startsWith('/')) {
+                return url
+              }
+              // Otherwise, prepend /uploads/ if it doesn't start with /
+              return url.startsWith('uploads/') ? `/${url}` : `/uploads/images/${url}`
+            }
+            
+            return (
             <div
               key={index}
               className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all"
             >
               <img
-                src={imageUrl}
+                src={getImageSrc(imageUrl)}
                 alt={`Product ${index + 1}`}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error('Image load error:', imageUrl)
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not found%3C/text%3E%3C/svg%3E'
+                }}
               />
               
               {/* Primary Badge */}
@@ -160,7 +180,8 @@ const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) =>
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

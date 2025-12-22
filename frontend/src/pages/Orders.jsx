@@ -472,10 +472,10 @@ const Orders = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 relative z-10">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Quản lý đơn hàng</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 drop-shadow-sm">Quản lý đơn hàng</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Theo dõi và quản lý tất cả đơn hàng</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

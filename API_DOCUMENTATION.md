@@ -1,123 +1,5 @@
 # API Documentation
 
-Tài liệu API cho hệ thống quản lý bán hàng (Sales Management System)
-
-## Mục lục
-
-1. [Tổng quan](#tổng-quan)
-2. [Xác thực (Authentication)](#xác-thực-authentication)
-3. [Base URL](#base-url)
-4. [Quản lý API Keys](#quản-lý-api-keys)
-5. [Đơn hàng (Orders)](#đơn-hàng-orders)
-6. [Hàng hóa (Products)](#hàng-hóa-products)
-7. [Khách hàng (Customers)](#khách-hàng-customers)
-8. [Vận đơn (Shipments)](#vận-đơn-shipments)
-9. [Mã lỗi (Error Codes)](#mã-lỗi-error-codes)
-
----
-
-## Tổng quan
-
-API này cung cấp các endpoint để quản lý:
-- **Đơn hàng**: Tạo, cập nhật, xóa và theo dõi đơn hàng
-- **Hàng hóa**: Quản lý sản phẩm, tồn kho, giá cả
-- **Khách hàng**: Quản lý thông tin khách hàng và nhóm khách hàng
-- **Vận đơn**: Quản lý vận chuyển và theo dõi đơn hàng
-
-### Định dạng dữ liệu
-
-- **Request**: JSON
-- **Response**: JSON
-- **Content-Type**: `application/json`
-
----
-
-## Xác thực (Authentication)
-
-Hệ thống hỗ trợ 2 phương thức xác thực:
-
-### 1. JWT Token (Cho ứng dụng web)
-
-Tất cả các API endpoints (trừ login) đều yêu cầu xác thực bằng JWT token.
-
-#### Cách sử dụng
-
-Gửi token trong header `Authorization`:
-
-```
-Authorization: Bearer <your_jwt_token>
-```
-
-#### Ví dụ
-
-```bash
-curl -X GET "https://api.example.com/api/orders" \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-### 2. API Key Authentication (Cho tích hợp bên thứ ba)
-
-Hệ thống hỗ trợ xác thực bằng API key với 2 cách:
-
-#### Cách 1: Sử dụng API Token
-
-Gửi token trong header `Authorization`:
-
-```
-Authorization: Bearer <api_token>
-```
-
-hoặc
-
-```
-Authorization: ApiKey <api_token>
-```
-
-#### Cách 2: Sử dụng Client ID + Key Secret
-
-Gửi trong headers:
-
-```
-X-Client-ID: <client_id>
-X-Key-Secret: <key_secret>
-```
-
-hoặc trong query parameters:
-
-```
-?client_id=<client_id>&key_secret=<key_secret>
-```
-
-#### Ví dụ với API Token
-
-```bash
-curl -X GET "https://api.example.com/api/orders" \
-  -H "Authorization: Bearer your_api_token_here"
-```
-
-#### Ví dụ với Client ID + Key Secret
-
-```bash
-curl -X GET "https://api.example.com/api/orders" \
-  -H "X-Client-ID: client_abc123" \
-  -H "X-Key-Secret: your_key_secret_here"
-```
-
-hoặc
-
-```bash
-curl -X GET "https://api.example.com/api/orders?client_id=client_abc123&key_secret=your_key_secret_here"
-```
-
-#### Lưu ý
-
-- API token được tạo tự động khi tạo API key mới
-- Key secret chỉ hiển thị một lần khi tạo, hãy lưu lại ngay
-- API key có thể được set thời gian hết hạn (expires_at)
-- API key có thể bị vô hiệu hóa (revoke) mà không cần xóa
-
----
-
 ## Base URL
 
 ```
@@ -125,61 +7,61 @@ Production: https://sale.thuanchay.vn/api
 Development: http://localhost:5000/api
 ```
 
+## Authentication
+
+Tất cả các API endpoints (trừ `/auth/login`) đều yêu cầu authentication token.
+
+### Headers
+
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+Token được lấy từ endpoint `/auth/login` và phải được gửi kèm trong header `Authorization` của mỗi request.
+
 ---
 
-## Đơn hàng (Orders)
+## 1. Products API (Sản phẩm)
 
-### 1. Lấy danh sách đơn hàng
+### 1.1. GET /products
 
-**GET** `/api/orders`
+Lấy danh sách sản phẩm với phân trang và tìm kiếm.
 
-Lấy danh sách đơn hàng với các tùy chọn lọc và phân trang.
+**Request:**
+```
+GET /api/products?page=1&limit=10&search=keyword&category=category_name
+```
 
-#### Query Parameters
+**Query Parameters:**
+- `page` (optional, default: 1): Số trang
+- `limit` (optional, default: 10): Số lượng sản phẩm mỗi trang
+- `search` (optional): Tìm kiếm theo tên hoặc mô tả
+- `category` (optional): Lọc theo category hoặc category_id
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `status` | string | No | Lọc theo trạng thái: `pending`, `processing`, `completed`, `cancelled` |
-| `delivery_status` | string | No | Lọc theo trạng thái giao hàng: `pending`, `shipping`, `delivered`, `returned`, `cancelled` |
-| `page` | integer | No | Số trang (mặc định: 1) |
-| `limit` | integer | No | Số bản ghi mỗi trang (mặc định: 10) |
-| `start_date` | string | No | Ngày bắt đầu (format: YYYY-MM-DD) |
-| `end_date` | string | No | Ngày kết thúc (format: YYYY-MM-DD) |
-| `search` | string | No | Tìm kiếm theo số đơn, mã vận đơn, tên/email/phone khách hàng |
-| `return_code` | string | No | Lọc theo mã trả hàng |
-| `reconciliation_code` | string | No | Lọc theo mã đối soát |
-| `tracking_number` | string | No | Lọc theo mã vận đơn |
-
-#### Response 200 OK
-
+**Response:**
 ```json
 {
-  "orders": [
+  "products": [
     {
       "id": 1,
-      "order_number": "ORD-1234567890-123",
-      "customer_id": 5,
-      "customer_name": "Nguyễn Văn A",
-      "customer_code": "KH001",
-      "customer_email": "nguyenvana@example.com",
-      "customer_phone": "0901234567",
-      "status": "processing",
-      "delivery_status": "shipping",
-      "total_amount": 1500000.00,
-      "total_after_tax": 1650000.00,
-      "payment_method": "cod",
-      "shipping_method_id": 1,
-      "shipping_method_name": "Giao hàng nhanh",
-      "tracking_number": "VN123456789",
-      "sales_channel": "shopee",
-      "branch_id": 1,
-      "branch_code": "CN001",
-      "branch_name": "Chi nhánh Hà Nội",
-      "seller_id": 2,
-      "seller_name": "Nguyễn Thị B",
-      "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-15T11:00:00.000Z",
-      "total_quantity": 3
+      "name": "Sản phẩm A",
+      "description": "Mô tả sản phẩm",
+      "price": 100000,
+      "stock": 50,
+      "category": "Danh mục 1",
+      "category_id": 1,
+      "image_url": "/uploads/images/product.jpg",
+      "images": ["/uploads/images/product1.jpg", "/uploads/images/product2.jpg"],
+      "sku": "SKU001",
+      "barcode": "1234567890123",
+      "cost_price": 80000,
+      "weight": 0.5,
+      "supplier_id": 1,
+      "low_stock_threshold": 10,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
     }
   ],
   "total": 100,
@@ -188,457 +70,145 @@ Lấy danh sách đơn hàng với các tùy chọn lọc và phân trang.
 }
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `500`: Server error
+- `503`: Database connection unavailable
+
 ---
 
-### 2. Lấy chi tiết đơn hàng
+### 1.2. GET /products/:id
 
-**GET** `/api/orders/:id`
+Lấy thông tin chi tiết một sản phẩm.
 
-Lấy thông tin chi tiết của một đơn hàng bao gồm các sản phẩm trong đơn.
+**Request:**
+```
+GET /api/products/1
+```
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của đơn hàng |
-
-#### Response 200 OK
-
+**Response:**
 ```json
 {
   "id": 1,
-  "order_number": "ORD-1234567890-123",
-  "customer_id": 5,
-  "customer_name": "Nguyễn Văn A",
-  "status": "processing",
-  "delivery_status": "shipping",
-  "total_amount": 1500000.00,
-  "total_after_tax": 1650000.00,
-  "payment_method": "cod",
-  "shipping_address": "123 Đường ABC, Quận 1, TP.HCM",
-  "shipping_phone": "0901234567",
-  "tracking_number": "VN123456789",
-  "sales_channel": "shopee",
-  "items": [
-    {
-      "id": 1,
-      "product_id": 10,
-      "product_name": "Áo thun nam",
-      "quantity": 2,
-      "unit_price": 500000.00,
-      "subtotal": 1000000.00
-    },
-    {
-      "id": 2,
-      "product_id": 15,
-      "product_name": "Quần jean",
-      "quantity": 1,
-      "unit_price": 500000.00,
-      "subtotal": 500000.00
-    }
-  ],
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T11:00:00.000Z"
-}
-```
-
-#### Response 404 Not Found
-
-```json
-{
-  "message": "Order not found"
-}
-```
-
----
-
-### 3. Tạo đơn hàng mới
-
-**POST** `/api/orders`
-
-Tạo một đơn hàng mới với các sản phẩm và thông tin khách hàng.
-
-#### Request Body
-
-```json
-{
-  "customer_id": 5,
-  "shipping_method_id": 1,
-  "payment_method": "cod",
-  "notes": "Giao hàng vào buổi sáng",
-  "shipping_address": "123 Đường ABC, Quận 1, TP.HCM",
-  "shipping_phone": "0901234567",
-  "sales_channel": "shopee",
-  "promotion_code": "SALE2024",
-  "items": [
-    {
-      "product_id": 10,
-      "quantity": 2
-    },
-    {
-      "product_id": 15,
-      "quantity": 1
-    }
-  ]
-}
-```
-
-#### Request Body Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `customer_id` | integer | No | ID khách hàng (có thể để null cho khách vãng lai) |
-| `shipping_method_id` | integer | No | ID phương thức vận chuyển |
-| `payment_method` | string | No | Phương thức thanh toán: `cod`, `bank_transfer`, `credit_card`, `cash` |
-| `notes` | string | No | Ghi chú đơn hàng |
-| `shipping_address` | string | No | Địa chỉ giao hàng |
-| `shipping_phone` | string | No | Số điện thoại người nhận |
-| `sales_channel` | string | No | Kênh bán hàng: `tiktok`, `shopee`, `lazada`, `facebook`, `other` |
-| `promotion_code` | string | No | Mã khuyến mãi |
-| `items` | array | **Yes** | Danh sách sản phẩm (tối thiểu 1 sản phẩm) |
-| `items[].product_id` | integer | **Yes** | ID sản phẩm |
-| `items[].quantity` | integer | **Yes** | Số lượng (tối thiểu: 1) |
-
-#### Response 201 Created
-
-```json
-{
-  "id": 1,
-  "order_number": "ORD-1234567890-123",
-  "customer_id": 5,
-  "status": "pending",
-  "delivery_status": "pending",
-  "total_amount": 1500000.00,
-  "total_after_tax": 1650000.00,
-  "payment_method": "cod",
-  "sales_channel": "shopee",
-  "items": [
-    {
-      "id": 1,
-      "product_id": 10,
-      "quantity": 2,
-      "unit_price": 500000.00,
-      "subtotal": 1000000.00
-    }
-  ],
-  "created_at": "2024-01-15T10:30:00.000Z"
-}
-```
-
-#### Response 400 Bad Request
-
-```json
-{
-  "errors": [
-    {
-      "msg": "At least one item is required",
-      "param": "items",
-      "location": "body"
-    }
-  ]
-}
-```
-
----
-
-### 4. Cập nhật đơn hàng
-
-**PUT** `/api/orders/:id`
-
-Cập nhật thông tin đơn hàng.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của đơn hàng |
-
-#### Request Body
-
-```json
-{
-  "customer_id": 5,
-  "shipping_method_id": 1,
-  "payment_method": "bank_transfer",
-  "status": "processing",
-  "delivery_status": "shipping",
-  "notes": "Đã xác nhận thanh toán",
-  "shipping_address": "456 Đường XYZ, Quận 2, TP.HCM",
-  "shipping_phone": "0907654321",
-  "tracking_number": "VN987654321",
-  "sales_channel": "lazada",
-  "total_amount": 1500000.00,
-  "total_after_tax": 1650000.00,
-  "discount_amount": 100000.00,
-  "vat": 150000.00,
-  "customer_paid": 1650000.00
-}
-```
-
-#### Request Body Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `customer_id` | integer | No | ID khách hàng |
-| `shipping_method_id` | integer | No | ID phương thức vận chuyển |
-| `payment_method` | string | No | Phương thức thanh toán |
-| `status` | string | No | Trạng thái: `pending`, `processing`, `completed`, `cancelled` |
-| `delivery_status` | string | No | Trạng thái giao hàng: `pending`, `shipping`, `delivered`, `returned`, `cancelled` |
-| `notes` | string | No | Ghi chú |
-| `shipping_address` | string | No | Địa chỉ giao hàng |
-| `shipping_phone` | string | No | Số điện thoại người nhận |
-| `tracking_number` | string | No | Mã vận đơn |
-| `sales_channel` | string | No | Kênh bán hàng |
-| `total_amount` | number | No | Tổng tiền |
-| `total_after_tax` | number | No | Tổng tiền sau thuế |
-| `discount_amount` | number | No | Số tiền giảm giá |
-| `vat` | number | No | Thuế VAT |
-| `customer_paid` | number | No | Số tiền khách đã thanh toán |
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "order_number": "ORD-1234567890-123",
-  "customer_id": 5,
-  "status": "processing",
-  "delivery_status": "shipping",
-  "total_amount": 1500000.00,
-  "updated_at": "2024-01-15T12:00:00.000Z"
-}
-```
-
----
-
-### 5. Cập nhật trạng thái đơn hàng
-
-**PATCH** `/api/orders/:id/status`
-
-Cập nhật trạng thái đơn hàng.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của đơn hàng |
-
-#### Request Body
-
-```json
-{
-  "status": "completed"
-}
-```
-
-#### Request Body Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `status` | string | **Yes** | Trạng thái: `pending`, `processing`, `completed`, `cancelled` |
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "order_number": "ORD-1234567890-123",
-  "status": "completed",
-  "updated_at": "2024-01-15T12:00:00.000Z"
-}
-```
-
----
-
-### 6. Xóa đơn hàng
-
-**DELETE** `/api/orders/:id`
-
-Xóa một đơn hàng.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của đơn hàng |
-
-#### Response 200 OK
-
-```json
-{
-  "message": "Order deleted successfully"
-}
-```
-
-#### Response 404 Not Found
-
-```json
-{
-  "message": "Order not found"
-}
-```
-
----
-
-## Hàng hóa (Products)
-
-### 1. Lấy danh sách sản phẩm
-
-**GET** `/api/products`
-
-Lấy danh sách sản phẩm với tùy chọn tìm kiếm và phân trang.
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `search` | string | No | Tìm kiếm theo tên hoặc mô tả |
-| `category` | string | No | Lọc theo danh mục |
-| `page` | integer | No | Số trang (mặc định: 1) |
-| `limit` | integer | No | Số bản ghi mỗi trang (mặc định: 10) |
-
-#### Response 200 OK
-
-```json
-{
-  "products": [
-    {
-      "id": 1,
-      "name": "Áo thun nam",
-      "description": "Áo thun cotton 100%, chất lượng cao",
-      "price": 500000.00,
-      "stock": 100,
-      "category": "Áo",
-      "category_id": 1,
-      "image_url": "https://example.com/images/ao-thun.jpg",
-      "sku": "SP001",
-      "barcode": "1234567890123",
-      "cost_price": 300000.00,
-      "weight": 0.2,
-      "supplier_id": 1,
-      "low_stock_threshold": 10,
-      "is_active": true,
-      "kiotviet_id": "KV123456",
-      "kiotviet_data": {},
-      "created_at": "2024-01-01T00:00:00.000Z",
-      "updated_at": "2024-01-15T10:00:00.000Z"
-    }
-  ],
-  "total": 50,
-  "page": 1,
-  "limit": 10
-}
-```
-
----
-
-### 2. Lấy chi tiết sản phẩm
-
-**GET** `/api/products/:id`
-
-Lấy thông tin chi tiết của một sản phẩm.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của sản phẩm |
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "name": "Áo thun nam",
-  "description": "Áo thun cotton 100%, chất lượng cao",
-  "price": 500000.00,
-  "stock": 100,
-  "category": "Áo",
+  "name": "Sản phẩm A",
+  "description": "Mô tả sản phẩm",
+  "price": 100000,
+  "stock": 50,
+  "category": "Danh mục 1",
   "category_id": 1,
-  "image_url": "https://example.com/images/ao-thun.jpg",
-  "sku": "SP001",
+  "image_url": "/uploads/images/product.jpg",
+  "images": ["/uploads/images/product1.jpg", "/uploads/images/product2.jpg"],
+  "sku": "SKU001",
   "barcode": "1234567890123",
-  "cost_price": 300000.00,
-  "weight": 0.2,
+  "cost_price": 80000,
+  "weight": 0.5,
   "supplier_id": 1,
   "low_stock_threshold": 10,
   "is_active": true,
   "created_at": "2024-01-01T00:00:00.000Z",
-  "updated_at": "2024-01-15T10:00:00.000Z"
+  "updated_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `404`: Product not found
+- `500`: Server error
+
 ---
 
-### 3. Tạo sản phẩm mới
+### 1.3. POST /products
 
-**POST** `/api/products`
+Tạo sản phẩm mới.
 
-Tạo một sản phẩm mới.
+**Request:**
+```
+POST /api/products
+```
 
-#### Request Body
-
+**Request Body:**
 ```json
 {
-  "name": "Áo thun nam",
-  "description": "Áo thun cotton 100%, chất lượng cao",
-  "price": 500000.00,
+  "name": "Sản phẩm mới",
+  "description": "Mô tả sản phẩm mới",
+  "price": 150000,
   "stock": 100,
-  "category": "Áo",
+  "category": "Danh mục 1",
   "category_id": 1,
-  "image_url": "https://example.com/images/ao-thun.jpg",
-  "sku": "SP001",
-  "barcode": "1234567890123",
-  "cost_price": 300000.00,
-  "weight": 0.2,
+  "image_url": "/uploads/images/new-product.jpg",
+  "images": ["/uploads/images/new-product1.jpg", "/uploads/images/new-product2.jpg"],
+  "sku": "SKU002",
+  "barcode": "1234567890124",
+  "cost_price": 120000,
+  "weight": 0.8,
   "supplier_id": 1,
   "low_stock_threshold": 10
 }
 ```
 
-#### Request Body Schema
+**Required Fields:**
+- `name` (string): Tên sản phẩm
+- `price` (number): Giá bán (phải >= 0)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | **Yes** | Tên sản phẩm |
-| `description` | string | No | Mô tả sản phẩm |
-| `price` | number | **Yes** | Giá bán (phải >= 0) |
-| `stock` | integer | No | Số lượng tồn kho (mặc định: 0) |
-| `category` | string | No | Tên danh mục |
-| `category_id` | integer | No | ID danh mục |
-| `image_url` | string | No | URL hình ảnh |
-| `sku` | string | No | Mã SKU (phải unique) |
-| `barcode` | string | No | Mã vạch (phải unique) |
-| `cost_price` | number | No | Giá vốn |
-| `weight` | number | No | Trọng lượng (kg) |
-| `supplier_id` | integer | No | ID nhà cung cấp |
-| `low_stock_threshold` | integer | No | Ngưỡng cảnh báo tồn kho thấp (mặc định: 10) |
+**Optional Fields:**
+- `description` (string): Mô tả sản phẩm
+- `stock` (integer): Số lượng tồn kho (default: 0)
+- `category` (string): Tên danh mục
+- `category_id` (integer): ID danh mục
+- `image_url` (string): URL ảnh chính
+- `images` (array): Mảng các URL ảnh
+- `sku` (string): Mã SKU
+- `barcode` (string): Mã vạch
+- `cost_price` (number): Giá vốn
+- `weight` (number): Trọng lượng
+- `supplier_id` (integer): ID nhà cung cấp
+- `low_stock_threshold` (integer): Ngưỡng cảnh báo tồn kho thấp (default: 10)
 
-#### Response 201 Created
-
+**Response:**
 ```json
 {
-  "id": 1,
-  "name": "Áo thun nam",
-  "description": "Áo thun cotton 100%, chất lượng cao",
-  "price": 500000.00,
+  "id": 2,
+  "name": "Sản phẩm mới",
+  "description": "Mô tả sản phẩm mới",
+  "price": 150000,
   "stock": 100,
-  "category": "Áo",
-  "sku": "SP001",
-  "created_at": "2024-01-15T10:00:00.000Z"
+  "category": "Danh mục 1",
+  "category_id": 1,
+  "image_url": "/uploads/images/new-product.jpg",
+  "images": ["/uploads/images/new-product1.jpg", "/uploads/images/new-product2.jpg"],
+  "sku": "SKU002",
+  "barcode": "1234567890124",
+  "cost_price": 120000,
+  "weight": 0.8,
+  "supplier_id": 1,
+  "low_stock_threshold": 10,
+  "is_active": true,
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
-#### Response 400 Bad Request
+**Status Codes:**
+- `201`: Created successfully
+- `400`: Bad request (validation error, duplicate SKU/barcode, invalid category/supplier ID)
+- `401`: Unauthorized
+- `500`: Server error
+- `503`: Database connection unavailable
+
+**Error Response:**
+```json
+{
+  "message": "Name and price are required"
+}
+```
+
+hoặc
 
 ```json
 {
   "errors": [
-    {
-      "msg": "Name is required",
-      "param": "name",
-      "location": "body"
-    },
     {
       "msg": "Price must be a positive number",
       "param": "price",
@@ -650,258 +220,447 @@ Tạo một sản phẩm mới.
 
 ---
 
-### 4. Cập nhật sản phẩm
+## 2. Orders API (Hóa đơn/Đơn hàng)
 
-**PUT** `/api/products/:id`
+### 2.1. GET /orders
 
-Cập nhật thông tin sản phẩm.
+Lấy danh sách đơn hàng với phân trang và lọc.
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của sản phẩm |
-
-#### Request Body
-
-```json
-{
-  "name": "Áo thun nam (Cập nhật)",
-  "description": "Áo thun cotton 100%, chất lượng cao - Phiên bản mới",
-  "price": 550000.00,
-  "stock": 150,
-  "category": "Áo",
-  "category_id": 1,
-  "image_url": "https://example.com/images/ao-thun-v2.jpg",
-  "sku": "SP001",
-  "barcode": "1234567890123",
-  "cost_price": 350000.00,
-  "weight": 0.25,
-  "supplier_id": 1,
-  "low_stock_threshold": 15,
-  "is_active": true
-}
+**Request:**
+```
+GET /api/orders?page=1&limit=10&status=pending&delivery_status=shipped&start_date=2024-01-01&end_date=2024-12-31&search=keyword
 ```
 
-#### Response 200 OK
+**Query Parameters:**
+- `page` (optional, default: 1): Số trang
+- `limit` (optional, default: 10): Số lượng đơn hàng mỗi trang
+- `status` (optional): Lọc theo trạng thái đơn hàng (pending, confirmed, processing, shipped, delivered, cancelled, returned)
+- `delivery_status` (optional): Lọc theo trạng thái giao hàng
+- `start_date` (optional): Ngày bắt đầu (YYYY-MM-DD)
+- `end_date` (optional): Ngày kết thúc (YYYY-MM-DD)
+- `search` (optional): Tìm kiếm theo mã đơn, tracking number, return code, reconciliation code, tên/email/phone khách hàng
+- `return_code` (optional): Lọc theo mã trả hàng
+- `reconciliation_code` (optional): Lọc theo mã đối soát
+- `tracking_number` (optional): Lọc theo mã vận đơn
 
+**Response:**
 ```json
 {
-  "id": 1,
-  "name": "Áo thun nam (Cập nhật)",
-  "price": 550000.00,
-  "stock": 150,
-  "updated_at": "2024-01-15T12:00:00.000Z"
-}
-```
-
-#### Response 400 Bad Request
-
-```json
-{
-  "message": "SKU or barcode already exists"
-}
-```
-
----
-
-### 5. Xóa sản phẩm
-
-**DELETE** `/api/products/:id`
-
-Xóa một sản phẩm.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của sản phẩm |
-
-#### Response 200 OK
-
-```json
-{
-  "message": "Product deleted successfully"
-}
-```
-
-#### Response 404 Not Found
-
-```json
-{
-  "message": "Product not found"
-}
-```
-
----
-
-## Khách hàng (Customers)
-
-### 1. Lấy danh sách khách hàng
-
-**GET** `/api/customers`
-
-Lấy danh sách khách hàng với tùy chọn tìm kiếm và phân trang.
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `search` | string | No | Tìm kiếm theo tên, email hoặc số điện thoại |
-| `page` | integer | No | Số trang (mặc định: 1) |
-| `limit` | integer | No | Số bản ghi mỗi trang (mặc định: 10) |
-
-#### Response 200 OK
-
-```json
-{
-  "customers": [
+  "orders": [
     {
       "id": 1,
-      "code": "KH001",
-      "name": "Nguyễn Văn A",
-      "email": "nguyenvana@example.com",
-      "phone": "0901234567",
-      "address": "123 Đường ABC, Quận 1, TP.HCM",
-      "group_id": 1,
-      "group_name": "Khách hàng VIP",
-      "group_discount": 10.00,
-      "credit_limit": 5000000.00,
-      "tags": "vip,regular",
-      "kiotviet_id": "KV789",
-      "kiotviet_data": {},
+      "order_number": "ORD-2024-001",
+      "customer_id": 1,
+      "customer_name": "Nguyễn Văn A",
+      "customer_code": "CUS001",
+      "customer_email": "customer@example.com",
+      "customer_phone": "0123456789",
+      "customer_address": "123 Đường ABC",
+      "seller_id": 1,
+      "seller_name": "Nguyễn Văn Bán",
+      "created_by": 1,
+      "creator_name": "Admin",
+      "branch_id": 1,
+      "branch_code": "BR001",
+      "branch_name": "Chi nhánh 1",
+      "status": "confirmed",
+      "delivery_status": "shipped",
+      "payment_status": "paid",
+      "payment_method": "cash",
+      "total_amount": 500000,
+      "discount_amount": 50000,
+      "shipping_fee": 30000,
+      "final_amount": 480000,
+      "shipping_method_id": 1,
+      "shipping_method_name": "Giao hàng nhanh",
+      "shipping_address": "123 Đường ABC",
+      "shipping_phone": "0123456789",
+      "tracking_number": "VN123456789",
+      "return_code": null,
+      "reconciliation_code": null,
+      "notes": "Giao hàng trong giờ hành chính",
+      "sales_channel": "online",
+      "total_quantity": 5,
       "created_at": "2024-01-01T00:00:00.000Z",
-      "updated_at": "2024-01-15T10:00:00.000Z"
+      "updated_at": "2024-01-01T00:00:00.000Z"
     }
   ],
-  "total": 200,
+  "total": 100,
   "page": 1,
   "limit": 10
 }
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `500`: Server error
+
 ---
 
-### 2. Lấy chi tiết khách hàng
+### 2.2. GET /orders/:id
 
-**GET** `/api/customers/:id`
+Lấy thông tin chi tiết một đơn hàng kèm danh sách sản phẩm.
 
-Lấy thông tin chi tiết của một khách hàng.
+**Request:**
+```
+GET /api/orders/1
+```
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của khách hàng |
-
-#### Response 200 OK
-
+**Response:**
 ```json
 {
   "id": 1,
-  "code": "KH001",
-  "name": "Nguyễn Văn A",
-  "email": "nguyenvana@example.com",
-  "phone": "0901234567",
-  "address": "123 Đường ABC, Quận 1, TP.HCM",
-  "group_id": 1,
-  "credit_limit": 5000000.00,
-  "tags": "vip,regular",
+  "order_number": "ORD-2024-001",
+  "customer_id": 1,
+  "customer_name": "Nguyễn Văn A",
+  "customer_code": "CUS001",
+  "customer_email": "customer@example.com",
+  "customer_phone": "0123456789",
+  "customer_address": "123 Đường ABC",
+  "seller_id": 1,
+  "seller_name": "Nguyễn Văn Bán",
+  "created_by": 1,
+  "creator_name": "Admin",
+  "branch_id": 1,
+  "branch_code": "BR001",
+  "branch_name": "Chi nhánh 1",
+  "status": "confirmed",
+  "delivery_status": "shipped",
+  "payment_status": "paid",
+  "payment_method": "cash",
+  "total_amount": 500000,
+  "discount_amount": 50000,
+  "shipping_fee": 30000,
+  "final_amount": 480000,
+  "shipping_method_id": 1,
+  "shipping_method_name": "Giao hàng nhanh",
+  "shipping_address": "123 Đường ABC",
+  "shipping_phone": "0123456789",
+  "tracking_number": "VN123456789",
+  "return_code": null,
+  "reconciliation_code": null,
+  "notes": "Giao hàng trong giờ hành chính",
+  "sales_channel": "online",
+  "items": [
+    {
+      "id": 1,
+      "order_id": 1,
+      "product_id": 1,
+      "product_name": "Sản phẩm A",
+      "product_image": "/uploads/images/product.jpg",
+      "quantity": 2,
+      "price": 100000,
+      "subtotal": 200000
+    },
+    {
+      "id": 2,
+      "order_id": 1,
+      "product_id": 2,
+      "product_name": "Sản phẩm B",
+      "product_image": "/uploads/images/product2.jpg",
+      "quantity": 3,
+      "price": 100000,
+      "subtotal": 300000
+    }
+  ],
   "created_at": "2024-01-01T00:00:00.000Z",
-  "updated_at": "2024-01-15T10:00:00.000Z"
+  "updated_at": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `404`: Order not found
+- `500`: Server error
+
+---
+
+### 2.3. POST /orders
+
+Tạo đơn hàng mới.
+
+**Request:**
+```
+POST /api/orders
+```
+
+**Request Body:**
+```json
+{
+  "customer_id": 1,
+  "seller_id": 1,
+  "branch_id": 1,
+  "status": "pending",
+  "payment_status": "unpaid",
+  "payment_method": "cash",
+  "total_amount": 500000,
+  "discount_amount": 50000,
+  "shipping_fee": 30000,
+  "final_amount": 480000,
+  "shipping_method_id": 1,
+  "shipping_address": "123 Đường ABC",
+  "shipping_phone": "0123456789",
+  "notes": "Giao hàng trong giờ hành chính",
+  "sales_channel": "online",
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2,
+      "price": 100000
+    },
+    {
+      "product_id": 2,
+      "quantity": 3,
+      "price": 100000
+    }
+  ]
+}
+```
+
+**Required Fields:**
+- `items` (array): Danh sách sản phẩm trong đơn hàng
+  - `product_id` (integer): ID sản phẩm
+  - `quantity` (integer): Số lượng
+  - `price` (number): Giá bán
+
+**Optional Fields:**
+- `customer_id` (integer): ID khách hàng (null nếu khách lẻ)
+- `seller_id` (integer): ID người bán
+- `branch_id` (integer): ID chi nhánh
+- `status` (string): Trạng thái đơn hàng (default: "pending")
+- `payment_status` (string): Trạng thái thanh toán (default: "unpaid")
+- `payment_method` (string): Phương thức thanh toán
+- `total_amount` (number): Tổng tiền
+- `discount_amount` (number): Số tiền giảm giá (default: 0)
+- `shipping_fee` (number): Phí vận chuyển (default: 0)
+- `final_amount` (number): Tổng tiền cuối cùng
+- `shipping_method_id` (integer): ID phương thức vận chuyển
+- `shipping_address` (string): Địa chỉ giao hàng
+- `shipping_phone` (string): Số điện thoại giao hàng
+- `notes` (string): Ghi chú
+- `sales_channel` (string): Kênh bán hàng
+
+**Response:**
+```json
+{
+  "id": 1,
+  "order_number": "ORD-2024-001",
+  "customer_id": 1,
+  "seller_id": 1,
+  "branch_id": 1,
+  "status": "pending",
+  "payment_status": "unpaid",
+  "payment_method": "cash",
+  "total_amount": 500000,
+  "discount_amount": 50000,
+  "shipping_fee": 30000,
+  "final_amount": 480000,
+  "shipping_method_id": 1,
+  "shipping_address": "123 Đường ABC",
+  "shipping_phone": "0123456789",
+  "notes": "Giao hàng trong giờ hành chính",
+  "sales_channel": "online",
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Status Codes:**
+- `201`: Created successfully
+- `400`: Bad request (validation error, insufficient stock, invalid product/customer/seller/branch ID)
+- `401`: Unauthorized
+- `500`: Server error
+
+**Error Response:**
+```json
+{
+  "message": "Items are required"
+}
+```
+
+hoặc
+
+```json
+{
+  "message": "Insufficient stock for product: Sản phẩm A"
 }
 ```
 
 ---
 
-### 3. Lấy danh sách đơn hàng của khách hàng
+## 3. Customers API (Khách hàng)
 
-**GET** `/api/customers/:id/orders`
+### 3.1. GET /customers
 
-Lấy tất cả đơn hàng của một khách hàng.
+Lấy danh sách khách hàng với phân trang và tìm kiếm.
 
-#### Path Parameters
+**Request:**
+```
+GET /api/customers?page=1&limit=10&search=keyword
+```
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của khách hàng |
+**Query Parameters:**
+- `page` (optional, default: 1): Số trang
+- `limit` (optional, default: 10): Số lượng khách hàng mỗi trang
+- `search` (optional): Tìm kiếm theo tên, email hoặc số điện thoại
 
-#### Response 200 OK
+**Response:**
+```json
+{
+  "customers": [
+    {
+      "id": 1,
+      "code": "CUS001",
+      "name": "Nguyễn Văn A",
+      "email": "customer@example.com",
+      "phone": "0123456789",
+      "address": "123 Đường ABC",
+      "group_id": 1,
+      "group_name": "Khách hàng VIP",
+      "group_discount": 10,
+      "credit_limit": 1000000,
+      "tags": ["VIP", "Thân thiết"],
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 100,
+  "page": 1,
+  "limit": 10
+}
+```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `500`: Server error
+
+---
+
+### 3.2. GET /customers/:id
+
+Lấy thông tin chi tiết một khách hàng.
+
+**Request:**
+```
+GET /api/customers/1
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "code": "CUS001",
+  "name": "Nguyễn Văn A",
+  "email": "customer@example.com",
+  "phone": "0123456789",
+  "address": "123 Đường ABC",
+  "group_id": 1,
+  "credit_limit": 1000000,
+  "tags": ["VIP", "Thân thiết"],
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `404`: Customer not found
+- `500`: Server error
+
+---
+
+### 3.3. GET /customers/:id/orders
+
+Lấy danh sách đơn hàng của một khách hàng.
+
+**Request:**
+```
+GET /api/customers/1/orders
+```
+
+**Response:**
 ```json
 [
   {
     "id": 1,
-    "order_number": "ORD-1234567890-123",
-    "customer_id": 1,
-    "status": "completed",
-    "total_amount": 1500000.00,
-    "created_at": "2024-01-15T10:30:00.000Z"
-  },
-  {
-    "id": 2,
-    "order_number": "ORD-1234567890-456",
-    "customer_id": 1,
-    "status": "processing",
-    "total_amount": 2000000.00,
-    "created_at": "2024-01-16T14:20:00.000Z"
+    "order_number": "ORD-2024-001",
+    "status": "confirmed",
+    "total_amount": 500000,
+    "final_amount": 480000,
+    "created_at": "2024-01-01T00:00:00.000Z"
   }
 ]
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `500`: Server error
+
 ---
 
-### 4. Tạo khách hàng mới
+### 3.4. POST /customers
 
-**POST** `/api/customers`
+Tạo khách hàng mới.
 
-Tạo một khách hàng mới.
+**Request:**
+```
+POST /api/customers
+```
 
-#### Request Body
-
+**Request Body:**
 ```json
 {
   "name": "Nguyễn Văn A",
-  "email": "nguyenvana@example.com",
-  "phone": "0901234567",
-  "address": "123 Đường ABC, Quận 1, TP.HCM",
+  "email": "customer@example.com",
+  "phone": "0123456789",
+  "address": "123 Đường ABC",
   "group_id": 1,
-  "credit_limit": 5000000.00,
-  "tags": "vip,regular"
+  "credit_limit": 1000000,
+  "tags": ["VIP", "Thân thiết"]
 }
 ```
 
-#### Request Body Schema
+**Required Fields:**
+- `name` (string): Tên khách hàng
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | **Yes** | Tên khách hàng |
-| `email` | string | No | Email (phải là email hợp lệ nếu có) |
-| `phone` | string | No | Số điện thoại |
-| `address` | string | No | Địa chỉ |
-| `group_id` | integer | No | ID nhóm khách hàng |
-| `credit_limit` | number | No | Hạn mức tín dụng |
-| `tags` | string | No | Tags (phân cách bằng dấu phẩy) |
+**Optional Fields:**
+- `email` (string): Email (phải là email hợp lệ nếu có)
+- `phone` (string): Số điện thoại
+- `address` (string): Địa chỉ
+- `group_id` (integer): ID nhóm khách hàng
+- `credit_limit` (number): Hạn mức tín dụng (default: 0)
+- `tags` (array): Mảng các tag
 
-#### Response 201 Created
-
+**Response:**
 ```json
 {
   "id": 1,
-  "code": "KH001",
+  "code": "CUS001",
   "name": "Nguyễn Văn A",
-  "email": "nguyenvana@example.com",
-  "phone": "0901234567",
-  "address": "123 Đường ABC, Quận 1, TP.HCM",
+  "email": "customer@example.com",
+  "phone": "0123456789",
+  "address": "123 Đường ABC",
   "group_id": 1,
-  "credit_limit": 5000000.00,
-  "tags": "vip,regular",
-  "created_at": "2024-01-15T10:00:00.000Z"
+  "credit_limit": 1000000,
+  "tags": ["VIP", "Thân thiết"],
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
-#### Response 400 Bad Request
+**Status Codes:**
+- `201`: Created successfully
+- `400`: Bad request (validation error, duplicate email/phone)
+- `401`: Unauthorized
+- `500`: Server error
+- `503`: Database connection unavailable
 
+**Error Response:**
 ```json
 {
   "errors": [
@@ -909,136 +668,59 @@ Tạo một khách hàng mới.
       "msg": "Name is required",
       "param": "name",
       "location": "body"
-    },
-    {
-      "msg": "Valid email is required",
-      "param": "email",
-      "location": "body"
     }
   ]
 }
 ```
 
----
-
-### 5. Cập nhật khách hàng
-
-**PUT** `/api/customers/:id`
-
-Cập nhật thông tin khách hàng.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của khách hàng |
-
-#### Request Body
+hoặc
 
 ```json
 {
-  "name": "Nguyễn Văn A (Cập nhật)",
-  "email": "nguyenvana.new@example.com",
-  "phone": "0907654321",
-  "address": "456 Đường XYZ, Quận 2, TP.HCM",
-  "group_id": 2,
-  "credit_limit": 10000000.00,
-  "tags": "vip,premium"
-}
-```
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "code": "KH001",
-  "name": "Nguyễn Văn A (Cập nhật)",
-  "email": "nguyenvana.new@example.com",
-  "phone": "0907654321",
-  "updated_at": "2024-01-15T12:00:00.000Z"
+  "message": "Khách hàng với email hoặc số điện thoại này đã tồn tại"
 }
 ```
 
 ---
 
-### 6. Xóa khách hàng
+## 4. Shipments API (Vận đơn)
 
-**DELETE** `/api/customers/:id`
+### 4.1. GET /shipments
 
-Xóa một khách hàng.
+Lấy danh sách vận đơn với phân trang và lọc.
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của khách hàng |
-
-#### Response 200 OK
-
-```json
-{
-  "message": "Customer deleted successfully"
-}
+**Request:**
+```
+GET /api/shipments?page=1&limit=20&status=pending&carrier_id=1
 ```
 
-#### Response 404 Not Found
+**Query Parameters:**
+- `page` (optional, default: 1): Số trang
+- `limit` (optional, default: 20): Số lượng vận đơn mỗi trang
+- `status` (optional): Lọc theo trạng thái vận đơn
+- `carrier_id` (optional): Lọc theo ID đơn vị vận chuyển
 
-```json
-{
-  "message": "Customer not found"
-}
-```
-
-#### Response 400 Bad Request
-
-```json
-{
-  "message": "Cannot delete customer with associated orders"
-}
-```
-
----
-
-## Vận đơn (Shipments)
-
-### 1. Lấy danh sách vận đơn
-
-**GET** `/api/shipments`
-
-Lấy danh sách vận đơn với tùy chọn lọc và phân trang.
-
-#### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `status` | string | No | Lọc theo trạng thái: `pending`, `in_transit`, `delivered`, `cancelled` |
-| `carrier_id` | integer | No | Lọc theo ID đơn vị vận chuyển |
-| `page` | integer | No | Số trang (mặc định: 1) |
-| `limit` | integer | No | Số bản ghi mỗi trang (mặc định: 20) |
-
-#### Response 200 OK
-
+**Response:**
 ```json
 {
   "shipments": [
     {
       "id": 1,
       "order_id": 1,
-      "order_number": "ORD-1234567890-123",
-      "customer_id": 5,
+      "order_number": "ORD-2024-001",
+      "customer_id": 1,
       "customer_name": "Nguyễn Văn A",
-      "customer_phone": "0901234567",
+      "customer_phone": "0123456789",
       "carrier_id": 1,
-      "carrier_name": "Giao hàng nhanh",
+      "carrier_name": "GHN",
       "tracking_number": "VN123456789",
-      "status": "in_transit",
-      "sales_channel": "shopee",
-      "estimated_delivery_date": "2024-01-20T00:00:00.000Z",
-      "delivered_at": null,
-      "notes": "Giao hàng vào buổi sáng",
-      "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-16T08:00:00.000Z"
+      "status": "pending",
+      "estimated_delivery_date": "2024-01-05",
+      "actual_delivery_date": null,
+      "notes": "Giao hàng trong giờ hành chính",
+      "sales_channel": "online",
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
     }
   ],
   "total": 50,
@@ -1047,80 +729,87 @@ Lấy danh sách vận đơn với tùy chọn lọc và phân trang.
 }
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `500`: Server error
+
 ---
 
-### 2. Lấy chi tiết vận đơn
+### 4.2. GET /shipments/:id
 
-**GET** `/api/shipments/:id`
+Lấy thông tin chi tiết một vận đơn.
 
-Lấy thông tin chi tiết của một vận đơn.
+**Request:**
+```
+GET /api/shipments/1
+```
 
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của vận đơn |
-
-#### Response 200 OK
-
+**Response:**
 ```json
 {
   "id": 1,
   "order_id": 1,
-  "order_number": "ORD-1234567890-123",
-  "customer_id": 5,
+  "order_number": "ORD-2024-001",
+  "customer_id": 1,
   "customer_name": "Nguyễn Văn A",
-  "customer_phone": "0901234567",
-  "customer_address": "123 Đường ABC, Quận 1, TP.HCM",
+  "customer_phone": "0123456789",
+  "customer_address": "123 Đường ABC",
+  "total_amount": 480000,
   "carrier_id": 1,
-  "carrier_name": "Giao hàng nhanh",
-  "carrier_description": "Dịch vụ giao hàng nhanh trong 24h",
+  "carrier_name": "GHN",
+  "carrier_description": "Giao hàng nhanh",
   "tracking_number": "VN123456789",
-  "status": "in_transit",
-  "sales_channel": "shopee",
-  "estimated_delivery_date": "2024-01-20T00:00:00.000Z",
-  "delivered_at": null,
-  "notes": "Giao hàng vào buổi sáng",
-  "total_amount": 1500000.00,
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-16T08:00:00.000Z"
+  "status": "pending",
+  "estimated_delivery_date": "2024-01-05",
+  "actual_delivery_date": null,
+  "notes": "Giao hàng trong giờ hành chính",
+  "sales_channel": "online",
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
+**Status Codes:**
+- `200`: Success
+- `401`: Unauthorized
+- `404`: Shipment not found
+- `500`: Server error
+
 ---
 
-### 3. Tạo vận đơn mới
+### 4.3. POST /shipments
 
-**POST** `/api/shipments`
+Tạo vận đơn mới.
 
-Tạo một vận đơn mới cho đơn hàng.
+**Request:**
+```
+POST /api/shipments
+```
 
-#### Request Body
-
+**Request Body:**
 ```json
 {
   "order_id": 1,
   "carrier_id": 1,
   "tracking_number": "VN123456789",
-  "notes": "Giao hàng vào buổi sáng",
-  "estimated_delivery_date": "2024-01-20T00:00:00.000Z",
-  "sales_channel": "shopee"
+  "notes": "Giao hàng trong giờ hành chính",
+  "estimated_delivery_date": "2024-01-05",
+  "sales_channel": "online"
 }
 ```
 
-#### Request Body Schema
+**Required Fields:**
+- `order_id` (integer): ID đơn hàng
+- `carrier_id` (integer): ID đơn vị vận chuyển
+- `tracking_number` (string): Mã vận đơn
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `order_id` | integer | **Yes** | ID đơn hàng |
-| `carrier_id` | integer | **Yes** | ID đơn vị vận chuyển |
-| `tracking_number` | string | **Yes** | Mã vận đơn |
-| `notes` | string | No | Ghi chú |
-| `estimated_delivery_date` | string | No | Ngày dự kiến giao hàng (ISO 8601) |
-| `sales_channel` | string | No | Kênh bán hàng |
+**Optional Fields:**
+- `notes` (string): Ghi chú
+- `estimated_delivery_date` (string): Ngày dự kiến giao hàng (YYYY-MM-DD)
+- `sales_channel` (string): Kênh bán hàng
 
-#### Response 201 Created
-
+**Response:**
 ```json
 {
   "id": 1,
@@ -1128,13 +817,22 @@ Tạo một vận đơn mới cho đơn hàng.
   "carrier_id": 1,
   "tracking_number": "VN123456789",
   "status": "pending",
-  "sales_channel": "shopee",
-  "created_at": "2024-01-15T10:30:00.000Z"
+  "estimated_delivery_date": "2024-01-05",
+  "actual_delivery_date": null,
+  "notes": "Giao hàng trong giờ hành chính",
+  "sales_channel": "online",
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "updated_at": "2024-01-01T00:00:00.000Z"
 }
 ```
 
-#### Response 400 Bad Request
+**Status Codes:**
+- `201`: Created successfully
+- `400`: Bad request (validation error, order not found, order already has shipment)
+- `401`: Unauthorized
+- `500`: Server error
 
+**Error Response:**
 ```json
 {
   "errors": [
@@ -1142,181 +840,38 @@ Tạo một vận đơn mới cho đơn hàng.
       "msg": "Order ID is required",
       "param": "order_id",
       "location": "body"
-    },
-    {
-      "msg": "Tracking number is required",
-      "param": "tracking_number",
-      "location": "body"
     }
   ]
 }
 ```
 
----
-
-### 4. Cập nhật trạng thái vận đơn
-
-**PATCH** `/api/shipments/:id/status`
-
-Cập nhật trạng thái vận đơn. Khi trạng thái là `delivered`, đơn hàng sẽ tự động được cập nhật thành `completed`.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của vận đơn |
-
-#### Request Body
+hoặc
 
 ```json
 {
-  "status": "delivered",
-  "delivered_at": "2024-01-20T10:00:00.000Z"
-}
-```
-
-#### Request Body Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `status` | string | **Yes** | Trạng thái: `pending`, `in_transit`, `delivered`, `cancelled` |
-| `delivered_at` | string | No | Thời gian giao hàng (ISO 8601) |
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "order_id": 1,
-  "status": "delivered",
-  "delivered_at": "2024-01-20T10:00:00.000Z",
-  "updated_at": "2024-01-20T10:00:00.000Z"
+  "message": "Order not found"
 }
 ```
 
 ---
 
-### 5. Cập nhật vận đơn
+## Error Handling
 
-**PUT** `/api/shipments/:id`
-
-Cập nhật thông tin vận đơn.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của vận đơn |
-
-#### Request Body
-
-```json
-{
-  "carrier_id": 2,
-  "tracking_number": "VN987654321",
-  "notes": "Đã cập nhật đơn vị vận chuyển",
-  "estimated_delivery_date": "2024-01-22T00:00:00.000Z"
-}
-```
-
-#### Request Body Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `carrier_id` | integer | No | ID đơn vị vận chuyển |
-| `tracking_number` | string | No | Mã vận đơn |
-| `notes` | string | No | Ghi chú |
-| `estimated_delivery_date` | string | No | Ngày dự kiến giao hàng (ISO 8601) |
-
-#### Response 200 OK
-
-```json
-{
-  "id": 1,
-  "order_id": 1,
-  "carrier_id": 2,
-  "tracking_number": "VN987654321",
-  "notes": "Đã cập nhật đơn vị vận chuyển",
-  "updated_at": "2024-01-16T12:00:00.000Z"
-}
-```
-
----
-
-### 6. Đồng bộ vận đơn với đơn vị vận chuyển
-
-**POST** `/api/shipments/:id/sync`
-
-Đồng bộ thông tin vận đơn từ đơn vị vận chuyển.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | integer | Yes | ID của vận đơn |
-
-#### Response 200 OK
-
-```json
-{
-  "success": true,
-  "message": "Shipment synced successfully",
-  "data": {
-    "status": "in_transit",
-    "location": "Đang tại kho trung chuyển",
-    "updated_at": "2024-01-16T08:00:00.000Z"
-  }
-}
-```
-
----
-
-### 7. Đồng bộ tất cả vận đơn của đơn vị vận chuyển
-
-**POST** `/api/shipments/carrier/:carrierId/sync`
-
-Đồng bộ tất cả vận đơn của một đơn vị vận chuyển.
-
-#### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `carrierId` | integer | Yes | ID của đơn vị vận chuyển |
-
-#### Response 200 OK
-
-```json
-{
-  "success": true,
-  "message": "Synced 10 shipments",
-  "synced": 10,
-  "failed": 0
-}
-```
-
----
-
-## Mã lỗi (Error Codes)
-
-### HTTP Status Codes
-
-| Code | Mô tả |
-|------|-------|
-| `200` | Thành công |
-| `201` | Đã tạo thành công |
-| `400` | Yêu cầu không hợp lệ (thiếu thông tin, dữ liệu không đúng format) |
-| `401` | Chưa xác thực (thiếu hoặc token không hợp lệ) |
-| `403` | Không có quyền truy cập |
-| `404` | Không tìm thấy tài nguyên |
-| `500` | Lỗi server |
-| `503` | Service unavailable (thường là lỗi kết nối database) |
+Tất cả các API endpoints đều trả về lỗi theo format chuẩn:
 
 ### Error Response Format
 
 ```json
 {
   "message": "Error message",
-  "error": "Detailed error message (only in development)",
+  "error": "Detailed error (only in development mode)"
+}
+```
+
+hoặc cho validation errors:
+
+```json
+{
   "errors": [
     {
       "msg": "Validation error message",
@@ -1327,103 +882,49 @@ Cập nhật thông tin vận đơn.
 }
 ```
 
-### Ví dụ Error Responses
+### Common Status Codes
 
-#### 400 Bad Request - Validation Error
-
-```json
-{
-  "errors": [
-    {
-      "msg": "Name is required",
-      "param": "name",
-      "location": "body"
-    },
-    {
-      "msg": "Price must be a positive number",
-      "param": "price",
-      "location": "body"
-    }
-  ]
-}
-```
-
-#### 401 Unauthorized
-
-```json
-{
-  "message": "Unauthorized"
-}
-```
-
-#### 404 Not Found
-
-```json
-{
-  "message": "Order not found"
-}
-```
-
-#### 500 Internal Server Error
-
-```json
-{
-  "message": "Server error",
-  "error": "Detailed error message (only in development mode)"
-}
-```
+- `200`: Success
+- `201`: Created successfully
+- `400`: Bad request (validation error, invalid data)
+- `401`: Unauthorized (missing or invalid token)
+- `404`: Resource not found
+- `500`: Internal server error
+- `503`: Service unavailable (database connection issue)
 
 ---
 
-## Ghi chú
+## Rate Limiting
 
-### Trạng thái đơn hàng (Order Status)
-
-- `pending`: Chờ xử lý
-- `processing`: Đang xử lý
-- `completed`: Hoàn thành
-- `cancelled`: Đã hủy
-
-### Trạng thái giao hàng (Delivery Status)
-
-- `pending`: Chờ giao hàng
-- `shipping`: Đang giao hàng
-- `delivered`: Đã giao hàng
-- `returned`: Đã trả hàng
-- `cancelled`: Đã hủy
-
-### Trạng thái vận đơn (Shipment Status)
-
-- `pending`: Chờ xử lý
-- `in_transit`: Đang vận chuyển
-- `delivered`: Đã giao hàng
-- `cancelled`: Đã hủy
-
-### Kênh bán hàng (Sales Channel)
-
-- `tiktok`: TikTok Shop
-- `shopee`: Shopee
-- `lazada`: Lazada
-- `facebook`: Facebook
-- `other`: Kênh khác
-
-### Phương thức thanh toán (Payment Method)
-
-- `cod`: Thanh toán khi nhận hàng (COD)
-- `bank_transfer`: Chuyển khoản ngân hàng
-- `credit_card`: Thẻ tín dụng
-- `cash`: Tiền mặt
+Hiện tại chưa có rate limiting. Có thể được thêm vào trong tương lai.
 
 ---
 
-## Liên hệ
+## Pagination
 
-Nếu có thắc mắc hoặc cần hỗ trợ, vui lòng liên hệ:
-- Email: support@example.com
-- Website: https://sale.thuanchay.vn
+Các endpoints hỗ trợ pagination sử dụng query parameters:
+- `page`: Số trang (bắt đầu từ 1)
+- `limit`: Số lượng items mỗi trang
+
+Response sẽ bao gồm:
+- `total`: Tổng số items
+- `page`: Trang hiện tại
+- `limit`: Số lượng items mỗi trang
 
 ---
 
-**Phiên bản tài liệu**: 1.0.0  
-**Cập nhật lần cuối**: 2024-01-15
+## Notes
 
+1. Tất cả các timestamps đều ở định dạng ISO 8601 (UTC).
+2. Tất cả các số tiền đều tính bằng VND (không có đơn vị tiền tệ trong response).
+3. Images array trong products có thể chứa URLs tuyệt đối hoặc tương đối.
+4. Khi tạo order, hệ thống sẽ tự động trừ stock của sản phẩm.
+5. Khi tạo shipment, hệ thống sẽ kiểm tra xem order đã có shipment chưa.
+
+---
+
+## Changelog
+
+### Version 1.0.0 (2024-01-01)
+- Initial API documentation
+- Products, Orders, Customers, Shipments endpoints

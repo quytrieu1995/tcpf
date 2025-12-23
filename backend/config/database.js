@@ -668,6 +668,32 @@ const init = async () => {
       CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC)
     `);
 
+    // API Tokens table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS api_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        token_hash VARCHAR(255) NOT NULL,
+        last_used_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        permissions JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id ON api_tokens(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_api_tokens_is_active ON api_tokens(is_active)
+    `);
+
     // Create default admin user if not exists
     const bcrypt = require('bcryptjs');
     const adminCheck = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);

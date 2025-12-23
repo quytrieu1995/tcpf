@@ -43,6 +43,25 @@ api.interceptors.response.use(
       }
     }
     
+    // Handle 502 Bad Gateway - Backend server issue
+    if (error.response?.status === 502) {
+      console.error('502 Bad Gateway - Backend server may be down or unreachable:', {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        message: error.message
+      });
+      // Don't show error toast for 502 in interceptor, let components handle it
+      // This prevents spam of error messages
+    }
+    
+    // Handle 503 Service Unavailable
+    if (error.response?.status === 503) {
+      console.error('503 Service Unavailable - Database or service may be unavailable:', {
+        url: error.config?.url,
+        message: error.message
+      });
+    }
+    
     // Handle network errors
     if (!error.response) {
       console.error('Network error:', {

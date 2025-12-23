@@ -23,9 +23,27 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       const response = await api.get('/categories')
-      setCategories(response.data)
+      setCategories(response.data || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status
+      })
+      
+      // Set empty array to prevent UI crash
+      setCategories([])
+      
+      // Handle 502 Bad Gateway gracefully
+      if (error.response?.status === 502) {
+        console.warn('Backend server returned 502 Bad Gateway. This may be a temporary issue.')
+        // Don't show alert to avoid spam
+      } else if (error.response?.status === 503) {
+        alert('Không thể kết nối đến database. Vui lòng kiểm tra backend.')
+      } else if (!error.response) {
+        console.warn('Network error when fetching categories')
+      }
     } finally {
       setLoading(false)
     }

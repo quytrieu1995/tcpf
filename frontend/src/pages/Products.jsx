@@ -102,9 +102,16 @@ const Products = () => {
       // Set empty array to prevent UI crash
       setCategories([])
       
-      // Only show toast if it's a critical error
-      if (error.response?.status === 502 || error.response?.status === 503) {
-        toast.error('Không thể tải danh mục. Vui lòng kiểm tra kết nối.')
+      // Only show toast for critical errors, and only once
+      if (error.response?.status === 502) {
+        // 502 Bad Gateway - Backend server issue
+        console.warn('Backend server returned 502 Bad Gateway. This may be a temporary issue.')
+        // Don't show toast to avoid spam, but log it
+      } else if (error.response?.status === 503) {
+        toast.error('Không thể kết nối đến database. Vui lòng kiểm tra backend.')
+      } else if (!error.response) {
+        // Network error - only show if it's not a 502
+        console.warn('Network error when fetching categories')
       }
     }
   }

@@ -648,6 +648,22 @@ const init = async () => {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)
     `);
+
+    // Print settings table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS print_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        invoice_settings JSONB DEFAULT '{}'::jsonb,
+        shipping_settings JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id)
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_print_settings_user_id ON print_settings(user_id)
+    `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC)
     `);

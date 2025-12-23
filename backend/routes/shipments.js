@@ -60,6 +60,7 @@ router.get('/:id', authenticate, async (req, res) => {
     const result = await db.pool.query(
       `SELECT s.*, 
               o.order_number, o.customer_id, o.total_amount, o.sales_channel as order_sales_channel,
+              o.shipping_address, o.shipping_phone,
               c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
               sm.name as carrier_name, sm.description as carrier_description
        FROM shipments s

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
-import { Eye, Download, Filter, X, Edit, Save, ShoppingCart, Truck, CheckCircle, Clock } from 'lucide-react'
+import { Eye, Download, Filter, X, Edit, Save, ShoppingCart, Truck, CheckCircle, Clock, Printer } from 'lucide-react'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import { format } from 'date-fns'
 import * as XLSX from 'xlsx'
@@ -10,6 +10,7 @@ import Modal from '../components/Modal'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import ColumnSelector from '../components/ColumnSelector'
+import InvoicePrint from '../components/InvoicePrint'
 
 const Orders = () => {
   const toast = useToast()
@@ -28,11 +29,38 @@ const Orders = () => {
   const [editFormData, setEditFormData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState([])
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [printOrder, setPrintOrder] = useState(null)
+  const [printSettings, setPrintSettings] = useState(null)
 
   useEffect(() => {
     fetchOrders()
     fetchUsers()
+    fetchPrintSettings()
   }, [statusFilter, deliveryStatusFilter, startDate, endDate, searchTerm])
+
+  const fetchPrintSettings = async () => {
+    try {
+      const response = await api.get('/print-settings')
+      setPrintSettings(response.data)
+    } catch (error) {
+      console.error('Error fetching print settings:', error)
+      // Use default settings
+      setPrintSettings({ invoice: {}, shipping: {} })
+    }
+  }
+
+  const handlePrintInvoice = async (order) => {
+    try {
+      // Fetch full order details with items
+      const response = await api.get(`/orders/${order.id}`)
+      setPrintOrder(response.data)
+      setShowPrintModal(true)
+    } catch (error) {
+      console.error('Error fetching order details:', error)
+      toast.error('Không thể tải chi tiết đơn hàng để in')
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -421,17 +449,26 @@ const Orders = () => {
             variant="ghost"
             size="sm"
             onClick={() => handleViewDetails(row)}
+            title="Xem chi tiết"
           >
-            <Eye className="w-4 h-4 mr-1" />
-            Chi tiết
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePrintInvoice(row)}
+            title="In hóa đơn"
+            className="text-blue-600 hover:text-blue-700"
+          >
+            <Printer className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleEdit(row)}
+            title="Chỉnh sửa"
           >
-            <Edit className="w-4 h-4 mr-1" />
-            Sửa
+            <Edit className="w-4 h-4" />
           </Button>
         </div>
       )
@@ -1091,6 +1128,18 @@ const Orders = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Print Invoice Modal */}
+      {showPrintModal && printOrder && (
+        <InvoicePrint
+          order={printOrder}
+          printSettings={printSettings?.invoice || {}}
+          onClose={() => {
+            setShowPrintModal(false)
+            setPrintOrder(null)
+          }}
+        />
+      )}
     </div>
   )
 }

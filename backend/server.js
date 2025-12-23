@@ -78,6 +78,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/address', require('./routes/address'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/print-settings', require('./routes/print-settings'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

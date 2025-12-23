@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Users, Shield, Bell } from 'lucide-react'
+import { Settings as SettingsIcon, Users, Shield, Bell, Printer } from 'lucide-react'
 import UsersManagement from './Users'
+import PrintSettings from './PrintSettings'
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('users')
@@ -50,6 +51,12 @@ const Settings = () => {
           </div>
         </div>
       )
+    },
+    {
+      id: 'print',
+      name: 'Mẫu in',
+      icon: Printer,
+      component: <PrintSettings />
     }
   ]
 

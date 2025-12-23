@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
-import { Plus, Eye, Package, Truck, RefreshCw } from 'lucide-react'
+import { Plus, Eye, Package, Truck, RefreshCw, Printer } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import Input from '../components/Input'
+import ShippingLabelPrint from '../components/ShippingLabelPrint'
 
 const Shipments = () => {
   const toast = useToast()
@@ -17,6 +18,9 @@ const Shipments = () => {
   const [showModal, setShowModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedShipment, setSelectedShipment] = useState(null)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [printShipment, setPrintShipment] = useState(null)
+  const [printSettings, setPrintSettings] = useState(null)
   const [formData, setFormData] = useState({
     order_id: '',
     carrier_id: '',
@@ -29,7 +33,30 @@ const Shipments = () => {
     fetchShipments()
     fetchCarriers()
     fetchOrders()
+    fetchPrintSettings()
   }, [])
+
+  const fetchPrintSettings = async () => {
+    try {
+      const response = await api.get('/print-settings')
+      setPrintSettings(response.data)
+    } catch (error) {
+      console.error('Error fetching print settings:', error)
+      setPrintSettings({ invoice: {}, shipping: {} })
+    }
+  }
+
+  const handlePrintLabel = async (shipment) => {
+    try {
+      // Fetch full shipment details
+      const response = await api.get(`/shipments/${shipment.id}`)
+      setPrintShipment(response.data)
+      setShowPrintModal(true)
+    } catch (error) {
+      console.error('Error fetching shipment details:', error)
+      toast.error('Không thể tải chi tiết vận đơn để in')
+    }
+  }
 
   const fetchShipments = async () => {
     try {
@@ -495,6 +522,18 @@ const Shipments = () => {
           </div>
         )}
       </Modal>
+
+      {/* Print Shipping Label Modal */}
+      {showPrintModal && printShipment && (
+        <ShippingLabelPrint
+          shipment={printShipment}
+          printSettings={printSettings?.shipping || {}}
+          onClose={() => {
+            setShowPrintModal(false)
+            setPrintShipment(null)
+          }}
+        />
+      )}
     </div>
   )
 }

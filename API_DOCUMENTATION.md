@@ -11,6 +11,18 @@ Development: http://localhost:5000/api
 
 Tất cả các API endpoints (trừ `/auth/login`) đều yêu cầu authentication token.
 
+### Authentication Methods
+
+Hệ thống hỗ trợ 2 phương thức xác thực:
+
+1. **JWT Token** (cho web app users)
+   - Lấy từ endpoint `/auth/login`
+   - Format: JWT token
+
+2. **API Token** (cho external applications)
+   - Tạo từ Settings > API Tokens trong web app
+   - Format: `tcpf_xxxxxxxxxxxxx` (64 ký tự hex sau prefix)
+
 ### Headers
 
 ```
@@ -18,7 +30,31 @@ Authorization: Bearer <token>
 Content-Type: application/json
 ```
 
-Token được lấy từ endpoint `/auth/login` và phải được gửi kèm trong header `Authorization` của mỗi request.
+**Ví dụ với JWT Token:**
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Ví dụ với API Token:**
+```
+Authorization: Bearer tcpf_1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3
+```
+
+### API Token Permissions
+
+Khi tạo API token, bạn có thể chỉ định các quyền (permissions):
+
+- `products:read` - Đọc sản phẩm
+- `products:write` - Tạo/cập nhật/xóa sản phẩm
+- `orders:read` - Đọc đơn hàng
+- `orders:write` - Tạo/cập nhật đơn hàng
+- `customers:read` - Đọc khách hàng
+- `customers:write` - Tạo/cập nhật khách hàng
+- `shipments:read` - Đọc vận đơn
+- `shipments:write` - Tạo/cập nhật vận đơn
+- `reports:read` - Đọc báo cáo
+
+**Lưu ý:** API tokens có thể được vô hiệu hóa hoặc hết hạn. Kiểm tra trạng thái token trong Settings > API Tokens.
 
 ---
 
@@ -923,7 +959,103 @@ Response sẽ bao gồm:
 
 ---
 
+## API Tokens Management
+
+### Create API Token
+
+**Endpoint:** `POST /api/api-tokens`
+
+**Request Body:**
+```json
+{
+  "name": "Mobile App Token",
+  "expires_at": "2024-12-31T23:59:59Z",
+  "permissions": ["products:read", "orders:read", "orders:write"]
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Mobile App Token",
+  "token": "tcpf_1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3",
+  "expires_at": "2024-12-31T23:59:59.000Z",
+  "permissions": ["products:read", "orders:read", "orders:write"],
+  "created_at": "2024-01-01T00:00:00.000Z",
+  "warning": "Save this token now. You will not be able to see it again."
+}
+```
+
+**⚠️ Important:** Token chỉ được trả về một lần khi tạo. Hãy lưu lại ngay.
+
+### Get All API Tokens
+
+**Endpoint:** `GET /api/api-tokens`
+
+**Response:**
+```json
+{
+  "tokens": [
+    {
+      "id": 1,
+      "name": "Mobile App Token",
+      "token_preview": "$2a$10$...",
+      "last_used_at": "2024-01-15T10:30:00.000Z",
+      "expires_at": "2024-12-31T23:59:59.000Z",
+      "is_active": true,
+      "is_expired": false,
+      "permissions": ["products:read", "orders:read"],
+      "created_at": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Get Single API Token
+
+**Endpoint:** `GET /api/api-tokens/:id`
+
+### Update API Token
+
+**Endpoint:** `PUT /api/api-tokens/:id`
+
+**Request Body:**
+```json
+{
+  "name": "Updated Token Name",
+  "expires_at": "2025-12-31T23:59:59Z",
+  "permissions": ["products:read", "products:write"],
+  "is_active": true
+}
+```
+
+### Revoke API Token
+
+**Endpoint:** `POST /api/api-tokens/:id/revoke`
+
+Vô hiệu hóa token (set `is_active = false`).
+
+### Activate API Token
+
+**Endpoint:** `POST /api/api-tokens/:id/activate`
+
+Kích hoạt lại token đã bị vô hiệu hóa.
+
+### Delete API Token
+
+**Endpoint:** `DELETE /api/api-tokens/:id`
+
+Xóa vĩnh viễn token khỏi hệ thống.
+
+---
+
 ## Changelog
+
+### Version 1.1.0 (2024-01-15)
+- Added API Tokens management
+- Support API token authentication alongside JWT
+- API token permissions system
 
 ### Version 1.0.0 (2024-01-01)
 - Initial API documentation

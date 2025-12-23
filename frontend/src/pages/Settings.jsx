@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Users, Shield, Bell, Printer } from 'lucide-react'
+import { Settings as SettingsIcon, Users, Shield, Bell, Printer, Key } from 'lucide-react'
 import UsersManagement from './Users'
 import PrintSettings from './PrintSettings'
+import ApiTokens from './ApiTokens'
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('users')
@@ -51,6 +52,12 @@ const Settings = () => {
           </div>
         </div>
       )
+    },
+    {
+      id: 'api-tokens',
+      name: 'API Tokens',
+      icon: Key,
+      component: <ApiTokens />
     },
     {
       id: 'print',

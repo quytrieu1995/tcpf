@@ -9,6 +9,7 @@ import DataTable from '../components/DataTable'
 import { SkeletonCard } from '../components/Skeleton'
 import BackendConnectionCheck from '../components/BackendConnectionCheck'
 import ImageUpload from '../components/ImageUpload'
+import { getImageUrl } from '../utils/imageUtils'
 
 const Products = () => {
   const toast = useToast()

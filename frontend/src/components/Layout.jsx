@@ -13,7 +13,8 @@ import {
   FileText,
   Truck,
   Building,
-  Sparkles
+  Sparkles,
+  Calculator
 } from 'lucide-react'
 import { useState } from 'react'
 import Notifications from './Notifications'
@@ -45,6 +46,7 @@ const Layout = () => {
         { name: 'Đặt hàng', href: '/purchase-orders', icon: Package, gradient: 'from-orange-500 to-red-500' },
         { name: 'Vận đơn', href: '/shipments', icon: Truck, gradient: 'from-teal-500 to-cyan-500' },
         { name: 'Đơn vị vận chuyển', href: '/shipping-carriers', icon: Truck, gradient: 'from-violet-500 to-purple-500' },
+        { name: 'Đối soát', href: '/reconciliation', icon: Calculator, gradient: 'from-amber-500 to-orange-500' },
       ]
     },
     {

@@ -345,6 +345,72 @@ const init = async () => {
       )
     `);
 
+    // Reconciliation table (Đối soát)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reconciliations (
+        id SERIAL PRIMARY KEY,
+        reconciliation_code VARCHAR(50) UNIQUE NOT NULL,
+        type VARCHAR(20) NOT NULL CHECK (type IN ('carrier', 'platform')),
+        partner_id INTEGER,
+        partner_name VARCHAR(255),
+        partner_type VARCHAR(50),
+        period_start DATE NOT NULL,
+        period_end DATE NOT NULL,
+        total_orders INTEGER DEFAULT 0,
+        total_amount DECIMAL(12, 2) DEFAULT 0,
+        total_shipping_fee DECIMAL(12, 2) DEFAULT 0,
+        total_cod_amount DECIMAL(12, 2) DEFAULT 0,
+        total_return_fee DECIMAL(12, 2) DEFAULT 0,
+        total_other_charges DECIMAL(12, 2) DEFAULT 0,
+        total_deductions DECIMAL(12, 2) DEFAULT 0,
+        net_amount DECIMAL(12, 2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'approved', 'rejected', 'paid')),
+        notes TEXT,
+        confirmed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        confirmed_at TIMESTAMP,
+        approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        approved_at TIMESTAMP,
+        paid_at TIMESTAMP,
+        created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Reconciliation items (Chi tiết đối soát)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reconciliation_items (
+        id SERIAL PRIMARY KEY,
+        reconciliation_id INTEGER REFERENCES reconciliations(id) ON DELETE CASCADE,
+        order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+        shipment_id INTEGER REFERENCES shipments(id) ON DELETE SET NULL,
+        order_number VARCHAR(100),
+        tracking_number VARCHAR(100),
+        customer_name VARCHAR(255),
+        order_date TIMESTAMP,
+        order_amount DECIMAL(12, 2) DEFAULT 0,
+        shipping_fee DECIMAL(12, 2) DEFAULT 0,
+        cod_amount DECIMAL(12, 2) DEFAULT 0,
+        return_fee DECIMAL(12, 2) DEFAULT 0,
+        other_charges DECIMAL(12, 2) DEFAULT 0,
+        deductions DECIMAL(12, 2) DEFAULT 0,
+        net_amount DECIMAL(12, 2) DEFAULT 0,
+        status VARCHAR(50),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add indexes for better performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reconciliations_type ON reconciliations(type);
+      CREATE INDEX IF NOT EXISTS idx_reconciliations_status ON reconciliations(status);
+      CREATE INDEX IF NOT EXISTS idx_reconciliations_period ON reconciliations(period_start, period_end);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_items_reconciliation ON reconciliation_items(reconciliation_id);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_items_order ON reconciliation_items(order_id);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_items_shipment ON reconciliation_items(shipment_id);
+    `);
+
     // Payment methods table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS payment_methods (

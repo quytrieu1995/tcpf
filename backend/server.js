@@ -81,6 +81,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/print-settings', require('./routes/print-settings'));
 app.use('/api/api-tokens', require('./routes/api-tokens'));
 app.use('/api/reconciliation', require('./routes/reconciliation'));
+app.use('/api/reconciliation-upload', require('./routes/reconciliation-upload'));
 
 // Health check
 app.get('/api/health', async (req, res) => {

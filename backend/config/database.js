@@ -411,6 +411,81 @@ const init = async () => {
       CREATE INDEX IF NOT EXISTS idx_reconciliation_items_shipment ON reconciliation_items(shipment_id);
     `);
 
+    // Reconciliation uploads table (File đối soát đã upload)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reconciliation_uploads (
+        id SERIAL PRIMARY KEY,
+        reconciliation_id INTEGER REFERENCES reconciliations(id) ON DELETE SET NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_path VARCHAR(500) NOT NULL,
+        file_size INTEGER,
+        upload_type VARCHAR(20) DEFAULT 'carrier' CHECK (upload_type IN ('carrier', 'platform')),
+        partner_id INTEGER,
+        partner_name VARCHAR(255),
+        period_start DATE,
+        period_end DATE,
+        total_records INTEGER DEFAULT 0,
+        matched_records INTEGER DEFAULT 0,
+        unmatched_records INTEGER DEFAULT 0,
+        total_amount_file DECIMAL(12, 2) DEFAULT 0,
+        total_amount_system DECIMAL(12, 2) DEFAULT 0,
+        difference_amount DECIMAL(12, 2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+        error_message TEXT,
+        uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        processed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Reconciliation file items (Chi tiết từng đơn hàng trong file)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reconciliation_file_items (
+        id SERIAL PRIMARY KEY,
+        upload_id INTEGER REFERENCES reconciliation_uploads(id) ON DELETE CASCADE,
+        reconciliation_id INTEGER REFERENCES reconciliations(id) ON DELETE SET NULL,
+        order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+        shipment_id INTEGER REFERENCES shipments(id) ON DELETE SET NULL,
+        tracking_number VARCHAR(100),
+        order_number VARCHAR(100),
+        cod_amount_file DECIMAL(12, 2) DEFAULT 0,
+        cod_amount_system DECIMAL(12, 2) DEFAULT 0,
+        shipping_fee_file DECIMAL(12, 2) DEFAULT 0,
+        shipping_fee_system DECIMAL(12, 2) DEFAULT 0,
+        cod_fee_file DECIMAL(12, 2) DEFAULT 0,
+        return_fee_file DECIMAL(12, 2) DEFAULT 0,
+        partial_fee_file DECIMAL(12, 2) DEFAULT 0,
+        adjustment_file DECIMAL(12, 2) DEFAULT 0,
+        net_amount_file DECIMAL(12, 2) DEFAULT 0,
+        net_amount_system DECIMAL(12, 2) DEFAULT 0,
+        difference_amount DECIMAL(12, 2) DEFAULT 0,
+        reconciliation_status VARCHAR(20) DEFAULT 'pending' CHECK (reconciliation_status IN ('pending', 'matched', 'mismatched', 'not_found')),
+        differences JSONB,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add reconciliation status to orders and shipments
+    await pool.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS reconciliation_status VARCHAR(20) DEFAULT NULL CHECK (reconciliation_status IN ('matched', 'mismatched', 'not_found'));
+      
+      ALTER TABLE shipments 
+      ADD COLUMN IF NOT EXISTS reconciliation_status VARCHAR(20) DEFAULT NULL CHECK (reconciliation_status IN ('matched', 'mismatched', 'not_found'));
+    `);
+
+    // Add indexes
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_uploads_reconciliation ON reconciliation_uploads(reconciliation_id);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_uploads_status ON reconciliation_uploads(status);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_file_items_upload ON reconciliation_file_items(upload_id);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_file_items_tracking ON reconciliation_file_items(tracking_number);
+      CREATE INDEX IF NOT EXISTS idx_reconciliation_file_items_status ON reconciliation_file_items(reconciliation_status);
+      CREATE INDEX IF NOT EXISTS idx_orders_reconciliation_status ON orders(reconciliation_status);
+      CREATE INDEX IF NOT EXISTS idx_shipments_reconciliation_status ON shipments(reconciliation_status);
+    `);
+
     // Payment methods table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS payment_methods (

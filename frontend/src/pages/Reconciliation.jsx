@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../config/api'
-import { Plus, Eye, FileText, Download, Check, X, Clock } from 'lucide-react'
+import { Plus, Eye, FileText, Download, Check, X, Clock, Upload, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
@@ -17,6 +17,12 @@ const Reconciliation = () => {
   const [showModal, setShowModal] = useState(false)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedReconciliation, setSelectedReconciliation] = useState(null)
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showUploadDetailsModal, setShowUploadDetailsModal] = useState(false)
+  const [selectedUpload, setSelectedUpload] = useState(null)
+  const [uploads, setUploads] = useState([])
+  const [uploadFile, setUploadFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
     type: 'carrier',
     partner_id: '',
@@ -26,10 +32,19 @@ const Reconciliation = () => {
     period_end: '',
     notes: ''
   })
+  const [uploadFormData, setUploadFormData] = useState({
+    reconciliation_id: '',
+    upload_type: 'carrier',
+    partner_id: '',
+    partner_name: '',
+    period_start: '',
+    period_end: ''
+  })
 
   useEffect(() => {
     fetchReconciliations()
     fetchAvailablePartners()
+    fetchUploads()
   }, [])
 
   const fetchReconciliations = async () => {
@@ -166,6 +181,97 @@ const Reconciliation = () => {
     )
   }
 
+  const fetchUploads = async () => {
+    try {
+      const response = await api.get('/reconciliation-upload/uploads?limit=100')
+      setUploads(response.data.uploads || [])
+    } catch (error) {
+      console.error('Error fetching uploads:', error)
+    }
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                           'application/vnd.ms-excel', 
+                           'text/csv']
+      const allowedExts = ['.xlsx', '.xls', '.csv']
+      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+      
+      if (!allowedTypes.includes(file.type) && !allowedExts.includes(ext)) {
+        toast.error('Chỉ chấp nhận file Excel (.xlsx, .xls) hoặc CSV')
+        return
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File không được vượt quá 10MB')
+        return
+      }
+      
+      setUploadFile(file)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!uploadFile) {
+      toast.error('Vui lòng chọn file để upload')
+      return
+    }
+
+    try {
+      setUploading(true)
+      const formData = new FormData()
+      formData.append('file', uploadFile)
+      formData.append('reconciliation_id', uploadFormData.reconciliation_id || '')
+      formData.append('upload_type', uploadFormData.upload_type)
+      formData.append('partner_id', uploadFormData.partner_id || '')
+      formData.append('partner_name', uploadFormData.partner_name || '')
+      formData.append('period_start', uploadFormData.period_start || '')
+      formData.append('period_end', uploadFormData.period_end || '')
+
+      await api.post('/reconciliation-upload/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+
+      toast.success('File đã được upload và đang được xử lý!')
+      setShowUploadModal(false)
+      setUploadFile(null)
+      setUploadFormData({
+        reconciliation_id: '',
+        upload_type: 'carrier',
+        partner_id: '',
+        partner_name: '',
+        period_start: '',
+        period_end: ''
+      })
+      
+      // Refresh after a delay to allow processing
+      setTimeout(() => {
+        fetchUploads()
+        fetchReconciliations()
+      }, 2000)
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi upload file')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleViewUploadDetails = async (upload) => {
+    try {
+      const response = await api.get(`/reconciliation-upload/uploads/${upload.id}`)
+      setSelectedUpload(response.data)
+      setShowUploadDetailsModal(true)
+    } catch (error) {
+      console.error('Error fetching upload details:', error)
+      toast.error('Không thể tải chi tiết')
+    }
+  }
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -269,11 +375,85 @@ const Reconciliation = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Đối soát</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Đối soát với đơn vị vận chuyển và sàn thương mại điện tử</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowModal(true) }}>
-          <Plus className="w-4 h-4 mr-2" />
-          Tạo đối soát
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => { setShowUploadModal(true) }}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Upload file đối soát
+          </Button>
+          <Button onClick={() => { resetForm(); setShowModal(true) }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Tạo đối soát
+          </Button>
+        </div>
       </div>
+
+      {/* Uploads Section */}
+      {uploads.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Lịch sử upload file</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Khớp / Tổng</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Chênh lệch</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày upload</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {uploads.slice(0, 5).map((upload) => (
+                  <tr key={upload.id}>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{upload.file_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {upload.upload_type === 'carrier' ? 'Vận chuyển' : 'Sàn TMĐT'}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                        upload.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' :
+                        upload.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        upload.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
+                        'bg-yellow-100 text-yellow-800 border-yellow-200'
+                      }`}>
+                        {upload.status === 'completed' ? 'Hoàn thành' :
+                         upload.status === 'processing' ? 'Đang xử lý' :
+                         upload.status === 'failed' ? 'Lỗi' : 'Chờ xử lý'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-900">
+                      <span className={upload.matched_records === upload.total_records ? 'text-green-600 font-semibold' : ''}>
+                        {upload.matched_records || 0} / {upload.total_records || 0}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-sm text-right font-semibold ${(upload.difference_amount || 0) === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(upload.difference_amount || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {format(new Date(upload.created_at), 'dd/MM/yyyy HH:mm')}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewUploadDetails(upload)}
+                        title="Xem chi tiết"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <DataTable
         data={reconciliations}
@@ -530,6 +710,241 @@ const Reconciliation = () => {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Upload File Modal */}
+      <Modal
+        isOpen={showUploadModal}
+        onClose={() => { setShowUploadModal(false); setUploadFile(null); setUploadFormData({
+          reconciliation_id: '',
+          upload_type: 'carrier',
+          partner_id: '',
+          partner_name: '',
+          period_start: '',
+          period_end: ''
+        }) }}
+        title="Upload file đối soát"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Loại đối soát <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={uploadFormData.upload_type}
+              onChange={(e) => setUploadFormData({ ...uploadFormData, upload_type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+              required
+            >
+              <option value="carrier">Đối soát với đơn vị vận chuyển</option>
+              <option value="platform">Đối soát với sàn TMĐT</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              File đối soát <span className="text-red-500">*</span>
+            </label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+              <div className="space-y-1 text-center">
+                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                <div className="flex text-sm text-gray-600">
+                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                    <span>Chọn file</span>
+                    <input
+                      id="file-upload"
+                      name="file-upload"
+                      type="file"
+                      className="sr-only"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileSelect}
+                    />
+                  </label>
+                  <p className="pl-1">hoặc kéo thả vào đây</p>
+                </div>
+                <p className="text-xs text-gray-500">Excel (.xlsx, .xls) hoặc CSV, tối đa 10MB</p>
+                {uploadFile && (
+                  <p className="text-sm text-green-600 font-medium mt-2">{uploadFile.name}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Đối tác (tùy chọn)
+            </label>
+            <Input
+              type="text"
+              value={uploadFormData.partner_name}
+              onChange={(e) => setUploadFormData({ ...uploadFormData, partner_name: e.target.value })}
+              placeholder="Tên đối tác"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Từ ngày (tùy chọn)
+              </label>
+              <Input
+                type="date"
+                value={uploadFormData.period_start}
+                onChange={(e) => setUploadFormData({ ...uploadFormData, period_start: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Đến ngày (tùy chọn)
+              </label>
+              <Input
+                type="date"
+                value={uploadFormData.period_end}
+                onChange={(e) => setUploadFormData({ ...uploadFormData, period_end: e.target.value })}
+                min={uploadFormData.period_start}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setShowUploadModal(false); setUploadFile(null); setUploadFormData({
+                reconciliation_id: '',
+                upload_type: 'carrier',
+                partner_id: '',
+                partner_name: '',
+                period_start: '',
+                period_end: ''
+              }) }}
+            >
+              Hủy
+            </Button>
+            <Button onClick={handleUpload} disabled={!uploadFile || uploading}>
+              {uploading ? 'Đang xử lý...' : 'Upload và đối soát'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Upload Details Modal */}
+      <Modal
+        isOpen={showUploadDetailsModal}
+        onClose={() => { setShowUploadDetailsModal(false); setSelectedUpload(null) }}
+        title={`Chi tiết upload: ${selectedUpload?.file_name}`}
+        size="xl"
+      >
+        {selectedUpload && (
+          <div className="space-y-6">
+            {/* Summary */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Trạng thái</p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                    selectedUpload.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' :
+                    selectedUpload.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                    selectedUpload.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
+                    'bg-yellow-100 text-yellow-800 border-yellow-200'
+                  }`}>
+                    {selectedUpload.status === 'completed' ? 'Hoàn thành' :
+                     selectedUpload.status === 'processing' ? 'Đang xử lý' :
+                     selectedUpload.status === 'failed' ? 'Lỗi' : 'Chờ xử lý'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Tổng số bản ghi</p>
+                  <p className="text-lg font-bold">{selectedUpload.total_records || 0}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Khớp</p>
+                  <p className="text-lg font-bold text-green-600">{selectedUpload.matched_records || 0}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Không khớp</p>
+                  <p className="text-lg font-bold text-red-600">{selectedUpload.unmatched_records || 0}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Tổng tiền từ file</p>
+                  <p className="text-lg font-bold text-blue-600">{formatCurrency(selectedUpload.total_amount_file)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Tổng tiền hệ thống</p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedUpload.total_amount_system)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Chênh lệch</p>
+                  <p className={`text-lg font-bold ${(selectedUpload.difference_amount || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(selectedUpload.difference_amount)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {selectedUpload.error_message && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Lỗi xử lý</p>
+                    <p className="text-sm text-red-600 mt-1">{selectedUpload.error_message}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Items Table */}
+            {selectedUpload.items && selectedUpload.items.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Chi tiết các đơn hàng</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã vận đơn</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">COD (File)</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">COD (Hệ thống)</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Phí ship (File)</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Phí ship (Hệ thống)</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Chênh lệch</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {selectedUpload.items.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.tracking_number || '-'}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              item.reconciliation_status === 'matched' ? 'bg-green-100 text-green-800 border-green-200' :
+                              item.reconciliation_status === 'mismatched' ? 'bg-red-100 text-red-800 border-red-200' :
+                              'bg-gray-100 text-gray-800 border-gray-200'
+                            }`}>
+                              {item.reconciliation_status === 'matched' ? 'Khớp' :
+                               item.reconciliation_status === 'mismatched' ? 'Lệch' : 'Không tìm thấy'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900">{formatCurrency(item.cod_amount_file)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600">{formatCurrency(item.cod_amount_system)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900">{formatCurrency(item.shipping_fee_file)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600">{formatCurrency(item.shipping_fee_system)}</td>
+                          <td className={`px-4 py-3 text-sm text-right font-semibold ${(item.difference_amount || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(item.difference_amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

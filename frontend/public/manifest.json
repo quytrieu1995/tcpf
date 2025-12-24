@@ -1,0 +1,22 @@
+{
+  "name": "Sales Dashboard",
+  "short_name": "Sales",
+  "description": "Sales Dashboard Application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "permissions": [
+    "notifications"
+  ],
+  "gcm_sender_id": "103953800507"
+}
+

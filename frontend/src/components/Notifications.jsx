@@ -1,13 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell, Check, X, Trash2 } from 'lucide-react'
+import { Bell, Check, X, Trash2, Settings } from 'lucide-react'
 import api from '../config/api'
+import { useBrowserNotifications } from '../hooks/useBrowserNotifications'
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([])
   const [isOpen, setIsOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const dropdownRef = useRef(null)
+  const previousNotificationsRef = useRef([])
+  
+  const {
+    permission,
+    isSupported,
+    isGranted,
+    isDenied,
+    requestPermission,
+    showNotificationFromData
+  } = useBrowserNotifications()
 
   useEffect(() => {
     fetchNotifications()
@@ -15,6 +27,32 @@ const Notifications = () => {
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  // Request notification permission on mount if not already granted
+  useEffect(() => {
+    if (isSupported && !isGranted && !isDenied) {
+      // Auto-request permission (optional - you can remove this if you want manual request only)
+      // requestPermission()
+    }
+  }, [isSupported, isGranted, isDenied])
+
+  // Show browser notifications for new unread notifications
+  useEffect(() => {
+    if (notifications.length > 0 && isGranted) {
+      const previousIds = previousNotificationsRef.current.map(n => n.id)
+      const newNotifications = notifications.filter(
+        n => !n.is_read && !previousIds.includes(n.id)
+      )
+
+      newNotifications.forEach(notification => {
+        showNotificationFromData(notification)
+      })
+
+      previousNotificationsRef.current = [...notifications]
+    } else {
+      previousNotificationsRef.current = [...notifications]
+    }
+  }, [notifications, isGranted, showNotificationFromData])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -105,6 +143,15 @@ const Notifications = () => {
     }
   }
 
+  const handleRequestPermission = async () => {
+    const result = await requestPermission()
+    if (result.granted) {
+      setShowSettings(false)
+    } else if (result.error) {
+      alert(result.error)
+    }
+  }
+
   const formatTime = (dateString) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -171,6 +218,15 @@ const Notifications = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Thông báo</h3>
               <div className="flex items-center gap-2">
+                {isSupported && (
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    title="Cài đặt thông báo"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                )}
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
@@ -187,6 +243,33 @@ const Notifications = () => {
                 </button>
               </div>
             </div>
+            {showSettings && isSupported && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Thông báo trình duyệt</span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    isGranted ? 'bg-green-100 text-green-700' : 
+                    isDenied ? 'bg-red-100 text-red-700' : 
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {isGranted ? 'Đã bật' : isDenied ? 'Đã tắt' : 'Chưa cấp quyền'}
+                  </span>
+                </div>
+                {!isGranted && !isDenied && (
+                  <button
+                    onClick={handleRequestPermission}
+                    className="w-full mt-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Bật thông báo
+                  </button>
+                )}
+                {isDenied && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Vui lòng bật thông báo trong cài đặt trình duyệt
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="max-h-96 overflow-y-auto">

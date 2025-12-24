@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // Get all notifications for current user
@@ -121,7 +122,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 // Create notification (for system use, can be called by admin or system)
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { user_id, type, title, message, link, metadata } = req.body;
+    const { user_id, type, title, message, link, metadata, send_email } = req.body;
     const userId = user_id || req.user.id; // Allow admin to create for other users
 
     // Only allow creating for other users if current user is admin
@@ -140,7 +141,32 @@ router.post('/', authenticate, async (req, res) => {
       [userId, type, title, message, link || null, metadata ? JSON.stringify(metadata) : null]
     );
 
-    res.status(201).json({ notification: result.rows[0] });
+    const notification = result.rows[0];
+
+    // Send email notification if requested and SMTP is configured
+    if (send_email !== false && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        // Get user email
+        const userResult = await db.pool.query(
+          'SELECT email FROM users WHERE id = $1',
+          [userId]
+        );
+
+        if (userResult.rows.length > 0 && userResult.rows[0].email) {
+          await emailService.sendNotificationEmail(userResult.rows[0].email, {
+            type,
+            title,
+            message,
+            link
+          });
+        }
+      } catch (emailError) {
+        // Log error but don't fail the notification creation
+        console.error('Error sending notification email:', emailError);
+      }
+    }
+
+    res.status(201).json({ notification });
   } catch (error) {
     console.error('Error creating notification:', error);
     res.status(500).json({ message: 'Error creating notification', error: error.message });

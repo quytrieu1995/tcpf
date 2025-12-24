@@ -116,6 +116,119 @@ router.post('/login', [
   }
 });
 
+// Forgot password
+router.post('/forgot-password', [
+  body('email').isEmail().withMessage('Valid email is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+
+    // Find user by email
+    const result = await db.pool.query(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [email]
+    );
+
+    // Always return success message to prevent email enumeration
+    if (result.rows.length === 0) {
+      return res.json({ 
+        message: 'If an account with that email exists, a password reset link has been sent.' 
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Generate reset token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Save reset token to database
+    await db.pool.query(
+      'UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+      [resetTokenHash, resetExpires, user.id]
+    );
+
+    // Send reset email
+    try {
+      const emailService = require('../services/emailService');
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+      await emailService.sendPasswordResetEmail(user.email, resetToken, resetUrl);
+      
+      console.log('[FORGOT PASSWORD] Reset email sent:', { userId: user.id, email: user.email });
+    } catch (emailError) {
+      console.error('[FORGOT PASSWORD] Error sending email:', emailError);
+      // Still return success to prevent email enumeration
+      // But log the error for debugging
+    }
+
+    res.json({ 
+      message: 'If an account with that email exists, a password reset link has been sent.' 
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset password
+router.post('/reset-password', [
+  body('token').notEmpty().withMessage('Reset token is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, password } = req.body;
+
+    // Hash token to compare with database
+    const crypto = require('crypto');
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid reset token
+    const result = await db.pool.query(
+      'SELECT id FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()',
+      [resetTokenHash]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const user = result.rows[0];
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password.trim(), 10);
+
+    // Update password and clear reset token
+    await db.pool.query(
+      `UPDATE users SET 
+        password = $1, 
+        password_reset_token = NULL, 
+        password_reset_expires = NULL,
+        updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2`,
+      [hashedPassword, user.id]
+    );
+
+    console.log('[RESET PASSWORD] Password reset successful:', { userId: user.id });
+
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Change password (user changes their own password)
 router.post('/change-password', authenticate, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),

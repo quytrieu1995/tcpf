@@ -20,6 +20,8 @@ import Shipments from './pages/Shipments'
 import CreateOrder from './pages/CreateOrder'
 import Settings from './pages/Settings'
 import Reconciliation from './pages/Reconciliation'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Layout from './components/Layout'
 
 function App() {
@@ -29,6 +31,8 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/health" element={
               <div className="p-8">
                 <BackendConnectionCheck />

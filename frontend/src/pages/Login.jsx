@@ -204,6 +204,12 @@ const Login = () => {
                   Ghi nhớ đăng nhập
                 </span>
               </label>
+              <a
+                href="/forgot-password"
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+              >
+                Quên mật khẩu?
+              </a>
             </div>
 
             {/* Submit button */}

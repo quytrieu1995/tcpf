@@ -506,7 +506,12 @@ const init = async () => {
       ADD COLUMN IF NOT EXISTS phone VARCHAR(20),
       ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true,
       ADD COLUMN IF NOT EXISTS last_login TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb
+      ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS date_of_birth DATE,
+      ADD COLUMN IF NOT EXISTS address TEXT,
+      ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500),
+      ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP
     `);
 
     // Customer Groups (Phân loại khách hàng)

@@ -1,13 +1,20 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Users, Shield, Bell, Printer, Key } from 'lucide-react'
+import { Settings as SettingsIcon, Users, Shield, Bell, Printer, Key, User } from 'lucide-react'
 import UsersManagement from './Users'
 import PrintSettings from './PrintSettings'
 import ApiTokens from './ApiTokens'
+import Profile from './Profile'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState('users')
+  const [activeTab, setActiveTab] = useState('profile')
 
   const tabs = [
+    {
+      id: 'profile',
+      name: 'Thông tin tài khoản',
+      icon: User,
+      component: <Profile />
+    },
     {
       id: 'users',
       name: 'Người dùng',

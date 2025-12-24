@@ -6,6 +6,7 @@ import Input from '../components/Input'
 import ImageUpload from '../components/ImageUpload'
 import { User, Mail, Phone, Calendar, MapPin, Lock, Save, Upload } from 'lucide-react'
 import { format } from 'date-fns'
+import { getImageUrl } from '../utils/imageUtils'
 
 const Profile = () => {
   const toast = useToast()
@@ -137,7 +138,7 @@ const Profile = () => {
               <div className="flex-shrink-0">
                 {profile.avatar_url ? (
                   <img
-                    src={profile.avatar_url.startsWith('http') ? profile.avatar_url : `${api.defaults.baseURL}${profile.avatar_url}`}
+                    src={getImageUrl(profile.avatar_url) || ''}
                     alt="Avatar"
                     className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
                   />

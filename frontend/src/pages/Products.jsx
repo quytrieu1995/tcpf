@@ -246,26 +246,11 @@ const Products = () => {
           imageUrl = row.image_url
         }
         
-        // Helper to get correct image URL
-        const getImageSrc = (url) => {
-          if (!url) return null
-          // If it's already a full URL, return as is
-          if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url
-          }
-          // If it starts with /, use as is (will be served by backend)
-          if (url.startsWith('/')) {
-            return url
-          }
-          // Otherwise, assume it's a relative path
-          return `/${url}`
-        }
-        
         return (
           <div className="flex items-center">
             {imageUrl ? (
               <img 
-                src={getImageSrc(imageUrl)} 
+                src={getImageUrl(imageUrl) || ''} 
                 alt={row.name} 
                 className="w-12 h-12 object-cover rounded-lg mr-3"
                 onError={(e) => {
@@ -455,27 +440,12 @@ const Products = () => {
               imageUrl = product.image_url
             }
             
-            // Helper to get correct image URL
-            const getImageSrc = (url) => {
-              if (!url) return null
-              // If it's already a full URL, return as is
-              if (url.startsWith('http://') || url.startsWith('https://')) {
-                return url
-              }
-              // If it starts with /, use as is (will be served by backend)
-              if (url.startsWith('/')) {
-                return url
-              }
-              // Otherwise, assume it's a relative path
-              return `/${url}`
-            }
-            
             return (
             <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden card-hover">
               <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
                 {imageUrl ? (
                   <img 
-                    src={getImageSrc(imageUrl)} 
+                    src={getImageUrl(imageUrl) || ''} 
                     alt={product.name} 
                     className="w-full h-full object-cover"
                     onError={(e) => {

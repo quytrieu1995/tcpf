@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { useToast } from './ToastContainer'
 import api from '../config/api'
+import { getImageUrl } from '../utils/imageUtils'
 
 const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) => {
   const toast = useToast()
@@ -123,28 +124,13 @@ const ImageUpload = ({ images = [], onChange, maxImages = 5, maxSizeMB = 5 }) =>
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {images.map((imageUrl, index) => {
-            // Handle relative URLs - convert to full URL if needed
-            const getImageSrc = (url) => {
-              if (!url) return ''
-              // If it's already a full URL (http/https), return as is
-              if (url.startsWith('http://') || url.startsWith('https://')) {
-                return url
-              }
-              // If it's a relative URL starting with /, use it as is (will be served by backend)
-              if (url.startsWith('/')) {
-                return url
-              }
-              // Otherwise, prepend /uploads/ if it doesn't start with /
-              return url.startsWith('uploads/') ? `/${url}` : `/uploads/images/${url}`
-            }
-            
             return (
             <div
               key={index}
               className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all"
             >
               <img
-                src={getImageSrc(imageUrl)}
+                src={getImageUrl(imageUrl) || ''}
                 alt={`Product ${index + 1}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {

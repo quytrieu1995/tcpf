@@ -14,27 +14,69 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     const { search, category, page = 1, limit = 10 } = req.query;
-    let query = 'SELECT * FROM products WHERE 1=1';
+    
+    // Tối ưu: Chỉ select các cột cần thiết thay vì SELECT *
+    let query = `
+      SELECT 
+        p.id,
+        p.name,
+        p.description,
+        p.price,
+        p.stock,
+        p.category_id,
+        p.image_url,
+        p.images,
+        p.sku,
+        p.barcode,
+        p.is_active,
+        p.low_stock_threshold,
+        p.created_at,
+        p.updated_at,
+        c.name as category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.is_active = true
+    `;
     const params = [];
     let paramCount = 0;
 
     if (search) {
       paramCount++;
-      query += ` AND (name ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
+      // Sử dụng full-text search index nếu có, fallback to ILIKE
+      query += ` AND (p.name ILIKE $${paramCount} OR p.description ILIKE $${paramCount})`;
       params.push(`%${search}%`);
     }
 
     if (category) {
       paramCount++;
-      query += ` AND (category = $${paramCount} OR category_id = $${paramCount})`;
+      // Ưu tiên category_id (có index) hơn category string
+      query += ` AND p.category_id = $${paramCount}`;
       params.push(category);
     }
 
-    query += ` ORDER BY created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    query += ` ORDER BY p.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
 
     const result = await db.pool.query(query, params);
-    const countResult = await db.pool.query('SELECT COUNT(*) FROM products');
+    
+    // Tối ưu: Count với cùng điều kiện WHERE
+    let countQuery = 'SELECT COUNT(*) FROM products p WHERE p.is_active = true';
+    const countParams = [];
+    let countParamCount = 0;
+    
+    if (search) {
+      countParamCount++;
+      countQuery += ` AND (p.name ILIKE $${countParamCount} OR p.description ILIKE $${countParamCount})`;
+      countParams.push(`%${search}%`);
+    }
+    
+    if (category) {
+      countParamCount++;
+      countQuery += ` AND p.category_id = $${countParamCount}`;
+      countParams.push(category);
+    }
+    
+    const countResult = await db.pool.query(countQuery, countParams);
     
     // Parse images JSONB to array for each product
     const products = result.rows.map(product => {

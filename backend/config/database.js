@@ -9,10 +9,15 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'sales_db',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD,
-  // Connection pool settings
-  max: 20,
+  // Connection pool settings - Tối ưu cho high traffic
+  max: parseInt(process.env.DB_POOL_MAX) || 50, // Tăng số connection tối đa
+  min: parseInt(process.env.DB_POOL_MIN) || 5, // Giữ tối thiểu 5 connections
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000, // Tăng timeout cho connection
+  // Statement timeout - tránh queries chạy quá lâu
+  statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT) || 30000,
+  // Query timeout
+  query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT) || 30000,
 });
 
 // Test connection

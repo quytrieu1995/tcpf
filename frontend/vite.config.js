@@ -18,12 +18,8 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: {
-      include: [/xlsx/, /node_modules/],
       transformMixedEsModules: true
     }
-  },
-  optimizeDeps: {
-    include: ['xlsx']
   }
 })
 

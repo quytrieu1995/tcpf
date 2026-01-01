@@ -3,7 +3,6 @@ import api from '../config/api'
 import { Eye, Download, Filter, X, Edit, Save, ShoppingCart, Truck, CheckCircle, Clock, Printer } from 'lucide-react'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import { format } from 'date-fns'
-// Dynamic import for xlsx to avoid build issues
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
@@ -91,77 +90,9 @@ const Orders = () => {
     }
   }
 
-  const handleExportExcel = async () => {
-    try {
-      // Dynamic import xlsx to avoid build issues
-      const xlsxModule = await import('xlsx')
-      const xlsx = xlsxModule.default || xlsxModule
-      
-      const exportData = orders.map(order => ({
-        'Mã hóa đơn': order.order_number || '',
-        'Mã vận đơn': order.tracking_number || '',
-        'Trạng thái giao hàng': getDeliveryStatusText(order.delivery_status),
-        'Mã đối soát': order.reconciliation_code || '',
-        'Thời gian': format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
-        'Thời gian tạo': format(new Date(order.created_at), 'dd/MM/yyyy HH:mm'),
-        'Ngày cập nhật': order.updated_at ? format(new Date(order.updated_at), 'dd/MM/yyyy HH:mm') : '',
-        'Mã đặt hàng': order.order_number || '',
-        'Mã trả hàng': order.return_code || '',
-        'Mã KH': order.customer_id || '',
-        'Khách hàng': order.customer_name || 'Khách vãng lai',
-        'Email': order.customer_email || '',
-        'Điện thoại': order.customer_phone || '',
-        'Địa chỉ': order.shipping_address || order.customer_address || '',
-        'Khu vực': order.area || '',
-        'Phường/Xã': order.ward || '',
-        'Ngày sinh': '', // Customer DOB not in order table
-        'Chi nhánh': order.branch_id || '',
-        'Người bán': order.seller_name || '',
-        'Người tạo': order.creator_name || '',
-        'Kênh bán': order.sales_channel || '',
-        'Đối tác giao hàng': '', // Will be from shipping_method
-        'Ghi chú': order.notes || '',
-        'Tổng tiền hàng': order.total_amount || 0,
-        'Tổng tiền hàng sau thuế': order.total_after_tax || order.total_amount || 0,
-        'Giảm giá': order.discount_amount || 0,
-        'Tổng sau giảm giá': (order.total_amount || 0) - (order.discount_amount || 0),
-        'VAT': order.vat || 0,
-        'Giảm thuế': order.tax_reduction || 0,
-        'Thu khác': order.other_income || 0,
-        'Khách cần trả': order.total_amount || 0,
-        'Khách đã trả': order.customer_paid || 0,
-        'Chiết khấu thanh toán': order.payment_discount || 0,
-        'Còn cần thu (COD)': order.cod_amount || 0,
-        'Phí trả ĐTGH': order.return_fee || 0,
-        'Ghi chú trạng thái giao hàng': order.delivery_status_notes || '',
-        'Thời gian giao hàng': order.delivered_at ? format(new Date(order.delivered_at), 'dd/MM/yyyy HH:mm') : '',
-        'Trạng thái': getStatusText(order.status)
-      }))
-
-      const ws = xlsx.utils.json_to_sheet(exportData)
-      const wb = xlsx.utils.book_new()
-      xlsx.utils.book_append_sheet(wb, ws, 'Đơn hàng')
-
-      const colWidths = Object.keys(exportData[0] || {}).map(() => ({ wch: 20 }))
-      ws['!cols'] = colWidths
-
-      let filename = 'DonHang'
-      if (startDate || endDate) {
-        const dateStr = startDate && endDate 
-          ? `${startDate}_${endDate}`
-          : startDate 
-          ? `tu_${startDate}`
-          : `den_${endDate}`
-        filename += `_${dateStr}`
-      }
-      filename += `_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`
-
-      xlsx.writeFile(wb, filename)
-      toast.success('Xuất Excel thành công!')
-    } catch (error) {
-      console.error('Error exporting Excel:', error)
-      toast.error('Có lỗi xảy ra khi xuất Excel')
-    }
+  const handleExportExcel = () => {
+    toast.error('Chức năng xuất Excel tạm thời không khả dụng')
+    // TODO: Implement CSV export as alternative
   }
 
   const clearFilters = () => {

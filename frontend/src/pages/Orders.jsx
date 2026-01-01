@@ -3,7 +3,7 @@ import api from '../config/api'
 import { Eye, Download, Filter, X, Edit, Save, ShoppingCart, Truck, CheckCircle, Clock, Printer } from 'lucide-react'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import { format } from 'date-fns'
-import * as XLSX from 'xlsx'
+// Dynamic import for xlsx to avoid build issues
 import { useToast } from '../components/ToastContainer'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
@@ -91,8 +91,12 @@ const Orders = () => {
     }
   }
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      // Dynamic import xlsx to avoid build issues
+      const xlsxModule = await import('xlsx')
+      const xlsx = xlsxModule.default || xlsxModule
+      
       const exportData = orders.map(order => ({
         'Mã hóa đơn': order.order_number || '',
         'Mã vận đơn': order.tracking_number || '',
@@ -134,9 +138,9 @@ const Orders = () => {
         'Trạng thái': getStatusText(order.status)
       }))
 
-      const ws = XLSX.utils.json_to_sheet(exportData)
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Đơn hàng')
+      const ws = xlsx.utils.json_to_sheet(exportData)
+      const wb = xlsx.utils.book_new()
+      xlsx.utils.book_append_sheet(wb, ws, 'Đơn hàng')
 
       const colWidths = Object.keys(exportData[0] || {}).map(() => ({ wch: 20 }))
       ws['!cols'] = colWidths
@@ -152,7 +156,7 @@ const Orders = () => {
       }
       filename += `_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`
 
-      XLSX.writeFile(wb, filename)
+      xlsx.writeFile(wb, filename)
       toast.success('Xuất Excel thành công!')
     } catch (error) {
       console.error('Error exporting Excel:', error)

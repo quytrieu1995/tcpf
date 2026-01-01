@@ -16,25 +16,14 @@ export default defineConfig({
       }
     }
   },
-  resolve: {
-    dedupe: ['xlsx']
-  },
   build: {
     commonjsOptions: {
       include: [/xlsx/, /node_modules/],
       transformMixedEsModules: true
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: undefined
-      }
     }
   },
   optimizeDeps: {
-    include: ['xlsx'],
-    esbuildOptions: {
-      plugins: []
-    }
+    include: ['xlsx']
   }
 })
 

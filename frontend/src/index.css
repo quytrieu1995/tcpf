@@ -9,13 +9,39 @@ html, body {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   letter-spacing: -0.01em;
+}
+
+/* Primary Colors */
+:root {
+  --primary-teal: #00A19A;
+  --primary-teal-dark: #008B85;
+  --primary-teal-light: #00B8B0;
+  --primary-green: #2FAC66;
+  --primary-green-dark: #259A55;
+  --primary-green-light: #3BC077;
+  
+  /* Legacy KiotViet colors - using new primary colors */
+  --kiotviet-blue: #00A19A;
+  --kiotviet-blue-dark: #008B85;
+  --kiotviet-blue-light: #00B8B0;
+  --kiotviet-green: #2FAC66;
+}
+
+/* Hide scrollbar for navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 * {

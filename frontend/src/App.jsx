@@ -22,7 +22,10 @@ import Settings from './pages/Settings'
 import Reconciliation from './pages/Reconciliation'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import PricePolicies from './pages/PricePolicies'
+import Cashbook from './pages/Cashbook'
 import Layout from './components/Layout'
+import KiotVietLayout from './components/KiotVietLayout'
 
 function App() {
   return (
@@ -42,7 +45,7 @@ function App() {
               path="/"
               element={
                 <PrivateRoute>
-                  <Layout />
+                  <KiotVietLayout />
                 </PrivateRoute>
               }
             >
@@ -60,10 +63,25 @@ function App() {
             <Route path="shipping-carriers" element={<ShippingCarriers />} />
             <Route path="shipments" element={<Shipments />} />
             <Route path="reconciliation" element={<Reconciliation />} />
-            <Route path="orders/create" element={<CreateOrder />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="reports" element={<Reports />} />
-            </Route>
+              <Route path="orders/create" element={<CreateOrder />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="price-policies" element={<PricePolicies />} />
+              <Route path="cashbook" element={<Cashbook />} />
+              <Route path="cashbook/reports" element={<Cashbook />} />
+              {/* Report sub-routes */}
+              <Route path="reports/business" element={<Reports />} />
+              <Route path="reports/products" element={<Reports />} />
+              <Route path="reports/customers" element={<Reports />} />
+              <Route path="reports/efficiency" element={<Reports />} />
+              <Route path="reports/end-of-day" element={<Reports />} />
+              <Route path="reports/sales" element={<Reports />} />
+              <Route path="reports/orders" element={<Reports />} />
+              <Route path="reports/suppliers" element={<Reports />} />
+              <Route path="reports/employees" element={<Reports />} />
+              <Route path="reports/sales-channels" element={<Reports />} />
+              <Route path="reports/finance" element={<Reports />} />
+              </Route>
           </Routes>
         </Router>
       </AuthProvider>

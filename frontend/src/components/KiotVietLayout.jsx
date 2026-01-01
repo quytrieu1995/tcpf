@@ -376,8 +376,8 @@ const KiotVietLayout = () => {
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            )
+          })}
         </div>
       </nav>
 

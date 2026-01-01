@@ -341,7 +341,7 @@ body {
 
 .focus-ring-gradient {
   @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
-  focus-ring-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  focus-ring-color: linear-gradient(135deg, #00A19A 0%, #2FAC66 100%);
 }
 
 /* Button hover effects */
@@ -350,7 +350,8 @@ body {
 }
 
 .btn-glow {
-  @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary-500/50;
+  @apply transition-all duration-300 hover:shadow-lg;
+  box-shadow: 0 10px 15px -3px rgba(0, 161, 154, 0.1), 0 4px 6px -2px rgba(0, 161, 154, 0.05);
 }
 
 /* Card hover effects */

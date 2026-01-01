@@ -15,6 +15,15 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    commonjsOptions: {
+      include: [/xlsx/, /node_modules/],
+      transformMixedEsModules: true
+    }
+  },
+  optimizeDeps: {
+    include: ['xlsx']
   }
 })
 
